@@ -43,11 +43,11 @@ runs:
   steps:
     - name: Checkout code (optional)
       if: ${{ inputs.checkout }}
-      uses: "actions/checkout@${{ inputs.checkout == 'true' || inputs.checkout == true ? 'v6' : inputs.checkout }}"
+      uses: actions/checkout@${{ (inputs.checkout == 'true' || inputs.checkout == true) && 'v6' || inputs.checkout }}
     
     - name: Setup Node (optional)
       if: ${{ inputs.node-setup }}
-      uses: "actions/setup-node@${{ inputs.node-setup == 'true' || inputs.node-setup == true ? 'v6' : inputs.node-setup }}"
+      uses: actions/setup-node@${{ (inputs.node-setup == 'true' || inputs.node-setup == true) && 'v6' || inputs.node-setup }}
       with:
         node-version: ${{ inputs.node-version }}
         node-version-file: ${{ inputs.node-version-file }}
