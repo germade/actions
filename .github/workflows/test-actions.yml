@@ -91,7 +91,7 @@ jobs:
           printf 'console.log(1);\n' > test-s3/site/app.js
 
       - name: Run deploy action
-        uses: ./deploy-to-s3
+        uses: ./upload-to-s3
         with:
           profile: smoke
           bucket-target: demo-bucket

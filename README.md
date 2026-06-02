@@ -7,7 +7,7 @@ Reusable GitHub composite actions for CI/CD and release workflows.
 | Action | Path | Purpose |
 | --- | --- | --- |
 | Artifact | `artifact` | Save/load files or folders as workflow artifacts, with optional compression. |
-| Deploy to S3 | `deploy-to-s3` | Sync build outputs to Amazon S3 with cache-control options. |
+| Upload to S3 | `upload-to-s3` | Sync build outputs to Amazon S3 with cache-control options. |
 | GitHub Deploy | `github-deployment` | Create and update GitHub Deployments and deployment statuses. |
 | GitHub Release | `github-release` | Create GitHub releases, upload assets, and optionally return changelog text. |
 | Setup AWS CLI | `setup-aws-cli` | Ensure AWS CLI is installed and configure AWS credentials via OIDC. |
@@ -70,7 +70,7 @@ Example:
     compressed: true
 ```
 
-### 2) Deploy to S3 (`deploy-to-s3`)
+### 2) Upload to S3 (`upload-to-s3`)
 
 Deploy local files to S3 using `aws s3 sync`, with optional no-cache override for matched files.
 
@@ -89,7 +89,7 @@ Example:
 
 ```yaml
 - name: Deploy web app
-  uses: ./deploy-to-s3
+  uses: ./upload-to-s3
   with:
     profile: default
     bucket-target: my-bucket
