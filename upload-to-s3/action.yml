@@ -3,7 +3,7 @@ name: Deploy to S3
 description: Deploy build artifacts to S3
 
 inputs:
-  profile:
+  aws-profile:
     description: AWS CLI profile to use for deployment
     required: true
     type: string
@@ -44,7 +44,7 @@ runs:
       fi
 
       aws s3 sync ${{ inputs.source-path }} s3://${{ inputs.bucket-target }}${{ inputs.bucket-path && format('/{0}', inputs.bucket-path) || '' }} \
-          --profile ${{ inputs.profile }} \
+          --profile ${{ inputs.aws-profile }} \
           --acl ${{ inputs.acl }} \
           ${{
             inputs.no-cache && format('--exclude {0}', inputs.no-cache) || ''
@@ -54,10 +54,10 @@ runs:
 
       if [ "${{ inputs.no-cache }}" != "false" ]; then
         aws s3 cp ${{ inputs.source-path }} s3://${{ inputs.bucket-target }}${{ inputs.bucket-path && format('/{0}', inputs.bucket-path) || '' }} \
-            --profile ${{ inputs.profile }} \
-            --acl ${{ inputs.acl }} \
-            --recursive \
-            --exclude "*" \
-            --include "${{ inputs.no-cache }}" \
-            --cache-control "no-cache, no-store"
+          --profile ${{ inputs.aws-profile }} \
+          --acl ${{ inputs.acl }} \
+          --recursive \
+          --exclude "*" \
+          --include "${{ inputs.no-cache }}" \
+          --cache-control "no-cache, no-store"
       fi
