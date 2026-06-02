@@ -45,7 +45,7 @@ Inputs:
 - `path` (required): Source path to save, or destination path to load into.
 - `name` (optional, default: `""`): Artifact name. If omitted, defaults to `path-<path>`.
 - `compressed` (optional, default: `false`): `true` to compress/decompress directories.
-- `action` (required): `save` or `load`.
+- `action` (required): `save`/`upload` or `load`/`download`.
 
 Outputs:
 - None declared.
