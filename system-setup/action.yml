@@ -41,13 +41,23 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Versions
+      id: versions
+      shell: bash
+      run: |
+        checkout_version="${{ (inputs.checkout == 'true' || inputs.checkout == true) && 'v6' || inputs.checkout }}"
+        echo "checkout_version=$checkout_version" >> "$GITHUB_OUTPUT"
+
+        node_setup_version="${{ (inputs.node-setup == 'true' || inputs.node-setup == true) && 'v6' || inputs.node-setup }}"
+        echo "node_setup_version=$node_setup_version" >> "$GITHUB_OUTPUT"
+  
     - name: Checkout code (optional)
       if: ${{ inputs.checkout }}
-      uses: actions/checkout@${{ (inputs.checkout == 'true' || inputs.checkout == true) && 'v6' || inputs.checkout }}
+      uses: actions/checkout@${{ steps.versions.outputs.checkout_version }}
     
     - name: Setup Node (optional)
       if: ${{ inputs.node-setup }}
-      uses: actions/setup-node@${{ (inputs.node-setup == 'true' || inputs.node-setup == true) && 'v6' || inputs.node-setup }}
+      uses: actions/setup-node@${{ steps.versions.outputs.node_setup_version }}
       with:
         node-version: ${{ inputs.node-version }}
         node-version-file: ${{ inputs.node-version-file }}
