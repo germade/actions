@@ -1,0 +1,38 @@
+name: Test Setup AWS CLI
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_oidc_role:
+        description: AWS OIDC role ARN to assume during the smoke test
+        required: true
+        type: string
+      aws_region:
+        description: AWS region used during the smoke test
+        required: false
+        default: us-east-1
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  setup_aws_cli:
+    name: Setup AWS CLI
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run setup action
+        uses: ./setup-aws-cli
+        with:
+          aws_oidc_role: ${{ inputs.aws_oidc_role }}
+          aws_region: ${{ inputs.aws_region }}
+
+      - name: Verify AWS identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws sts get-caller-identity

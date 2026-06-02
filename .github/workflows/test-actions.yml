@@ -1,0 +1,291 @@
+name: Test Actions
+
+on:
+  pull_request:
+    paths:
+      - '**/action.yml'
+      - '.github/workflows/**'
+  push:
+    paths:
+      - '**/action.yml'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  artifact:
+    name: Artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create source fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p test-artifact/source/subdir
+          printf 'hello\n' > test-artifact/source/file.txt
+          printf 'world\n' > test-artifact/source/subdir/nested.txt
+
+      - name: Save compressed artifact
+        uses: ./artifact
+        with:
+          path: test-artifact/source
+          name: smoke-artifact
+          compressed: true
+          action: save
+
+      - name: Remove source fixture
+        shell: bash
+        run: rm -rf test-artifact/source
+
+      - name: Restore compressed artifact
+        uses: ./artifact
+        with:
+          path: test-artifact/restored
+          name: smoke-artifact
+          compressed: true
+          action: load
+
+      - name: Verify restored contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          diff -ruN test-artifact/restored test-artifact/restored
+          test -f test-artifact/restored/file.txt
+          test -f test-artifact/restored/subdir/nested.txt
+          grep -Fx 'hello' test-artifact/restored/file.txt
+          grep -Fx 'world' test-artifact/restored/subdir/nested.txt
+
+  deploy_to_s3:
+    name: Deploy to S3
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create AWS CLI mock
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/mockbin"
+          cat > "$RUNNER_TEMP/mockbin/aws" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          printf '%s\n' "$*" >> "$AWS_LOG_FILE"
+          EOF
+          chmod +x "$RUNNER_TEMP/mockbin/aws"
+          echo "$RUNNER_TEMP/mockbin" >> "$GITHUB_PATH"
+          echo "AWS_LOG_FILE=$RUNNER_TEMP/aws.log" >> "$GITHUB_ENV"
+
+      - name: Create deployment fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p test-s3/site
+          printf '<html>index</html>\n' > test-s3/site/index.html
+          printf 'console.log(1);\n' > test-s3/site/app.js
+
+      - name: Run deploy action
+        uses: ./deploy-to-s3
+        with:
+          profile: smoke
+          bucket-target: demo-bucket
+          source-path: test-s3/site
+          bucket-path: preview
+          acl: public-read
+          no-cache: '*.html'
+
+      - name: Verify AWS CLI invocations
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 's3 sync test-s3/site s3://demo-bucket/preview --profile smoke --acl public-read --exclude *.html --cache-control private, max-age:3600 --delete' "$AWS_LOG_FILE"
+          grep -F 's3 cp test-s3/site s3://demo-bucket/preview --profile smoke --acl public-read --recursive --exclude * --include *.html --cache-control no-cache, no-store' "$AWS_LOG_FILE"
+
+  github_deployment:
+    name: GitHub Deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create curl mock
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/mockbin"
+          cat > "$RUNNER_TEMP/mockbin/curl" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          args=("$@")
+          url="${args[$(( ${#args[@]} - 1 ))]}"
+          printf 'URL %s\n' "$url" >> "$CURL_LOG_FILE"
+          for ((index = 0; index < ${#args[@]}; index++)); do
+            if [[ "${args[$index]}" == '-d' ]]; then
+              printf 'PAYLOAD %s\n' "${args[$((index + 1))]}" >> "$CURL_LOG_FILE"
+            fi
+          done
+          case "$url" in
+            */deployments/*/statuses)
+              printf '{"ok":true}'
+              ;;
+            */deployments)
+              printf '{"id":123}'
+              ;;
+            *)
+              printf '{}'
+              ;;
+          esac
+          EOF
+          chmod +x "$RUNNER_TEMP/mockbin/curl"
+          echo "$RUNNER_TEMP/mockbin" >> "$GITHUB_PATH"
+          echo "CURL_LOG_FILE=$RUNNER_TEMP/github-deployment-curl.log" >> "$GITHUB_ENV"
+
+      - name: Run deployment action
+        id: deployment
+        uses: ./github-deployment
+        with:
+          create: true
+          success: true
+          close: true
+          environment: preview
+          target-url: https://example.test/preview
+
+      - name: Verify deployment output and API calls
+        shell: bash
+        run: |
+          set -euo pipefail
+          test '${{ steps.deployment.outputs.deployment_id }}' = '123'
+          grep -F '/deployments' "$CURL_LOG_FILE"
+          grep -F '"state": "success"' "$CURL_LOG_FILE"
+          grep -F '"state": "inactive"' "$CURL_LOG_FILE"
+
+  github_release:
+    name: GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create release fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p test-release
+          printf 'release notes\n' > test-release/notes.txt
+
+      - name: Create curl mock
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/mockbin"
+          cat > "$RUNNER_TEMP/mockbin/curl" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          args=("$@")
+          url="${args[$(( ${#args[@]} - 1 ))]}"
+          printf 'URL %s\n' "$url" >> "$CURL_LOG_FILE"
+          for ((index = 0; index < ${#args[@]}; index++)); do
+            if [[ "${args[$index]}" == '-d' ]]; then
+              printf 'PAYLOAD %s\n' "${args[$((index + 1))]}" >> "$CURL_LOG_FILE"
+            fi
+          done
+          case "$url" in
+            */releases/tags/*)
+              printf '{}'
+              ;;
+            *uploads.github.com*)
+              printf '{"id":789}'
+              ;;
+            */releases)
+              printf '{"id":456,"body":"generated notes","assets":[]}'
+              ;;
+            *)
+              printf '{}'
+              ;;
+          esac
+          EOF
+          chmod +x "$RUNNER_TEMP/mockbin/curl"
+          echo "$RUNNER_TEMP/mockbin" >> "$GITHUB_PATH"
+          echo "CURL_LOG_FILE=$RUNNER_TEMP/github-release-curl.log" >> "$GITHUB_ENV"
+
+      - name: Run release action
+        id: release
+        uses: ./github-release
+        with:
+          tag: smoke-v1.0.0
+          get_changelog: true
+          attachments: |
+            test-release/notes.txt -> release-notes.txt
+
+      - name: Verify release output and API calls
+        shell: bash
+        run: |
+          set -euo pipefail
+          test '${{ steps.release.outputs.release-id }}' = '456'
+          test '${{ steps.release.outputs.changelog }}' = 'generated notes'
+          grep -F '/releases/tags/smoke-v1.0.0' "$CURL_LOG_FILE"
+          grep -F '/releases' "$CURL_LOG_FILE"
+          grep -F 'uploads.github.com' "$CURL_LOG_FILE"
+          grep -F 'release-notes.txt' "$CURL_LOG_FILE"
+
+  story_details:
+    name: Story Details
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run story details action
+        id: story
+        uses: ./story-details
+
+      - name: Verify exported values
+        shell: bash
+        env:
+          OUTPUT_BRANCH: ${{ steps.story.outputs.branch }}
+          OUTPUT_STORY_ID: ${{ steps.story.outputs.story-id }}
+          OUTPUT_PR: ${{ steps.story.outputs.pr }}
+          OUTPUT_EPHEMERAL_FOLDER: ${{ steps.story.outputs.ephemeral-folder }}
+          GITHUB_EVENT_PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          expected_branch="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
+          expected_pr="${GITHUB_EVENT_PR_NUMBER:-}"
+          expected_story_id=$(echo "$expected_branch" | grep -ioE '[a-z]+-[0-9]+' | head -n1 | tr '[:upper:]' '[:lower:]' || true)
+
+          if [ -n "$expected_story_id" ]; then
+            expected_ephemeral="$expected_story_id"
+          elif [ -n "$expected_pr" ]; then
+            expected_ephemeral="pr-$expected_pr"
+          else
+            expected_ephemeral='unknown'
+          fi
+
+          test "$OUTPUT_BRANCH" = "$expected_branch"
+          test "$OUTPUT_STORY_ID" = "$expected_story_id"
+          test "$OUTPUT_PR" = "$expected_pr"
+          test "$OUTPUT_EPHEMERAL_FOLDER" = "$expected_ephemeral"
+
+  system_setup:
+    name: System Setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run system setup action
+        uses: ./system-setup
+        with:
+          install-linux-commands: bash tar
+
+      - name: Verify commands remain available
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v bash
+          command -v tar

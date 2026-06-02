@@ -1,4 +1,3 @@
-
 name: 'Artifact'
 description: 'Save or load a folder or file with optional compression'
 
@@ -26,6 +25,31 @@ runs:
       id: resolve
       shell: bash
       run: |
+        sanitize_artifact_name() {
+          local raw="$1"
+
+          # Replace characters not allowed by upload/download-artifact.
+          raw="${raw//\"/_}"
+          raw="${raw//:/_}"
+          raw="${raw//</_}"
+          raw="${raw//>/_}"
+          raw="${raw//|/_}"
+          raw="${raw//\*/_}"
+          raw="${raw//\?/_}"
+          raw="${raw//$'\r'/_}"
+          raw="${raw//$'\n'/_}"
+          raw="${raw//\\/_}"
+          raw="${raw//\//_}"
+          raw="${raw// /_}"
+
+          # Avoid empty names after sanitization.
+          if [ -z "$raw" ]; then
+            raw='artifact'
+          fi
+
+          printf '%s' "$raw"
+        }
+
         artifact_action='${{ inputs.action }}'
 
         if [ "$artifact_action" != 'save' ] && [ "$artifact_action" != 'load' ]; then
@@ -38,9 +62,9 @@ runs:
           artifact_name='path-${{ inputs.path }}'
         fi
 
-        artifact_name=$(printf '%s' "$artifact_name" | tr '":<>|*?\r\n\\/' '_' | tr ' ' '_')
+        artifact_name=$(sanitize_artifact_name "$artifact_name")
         archive_name=$(printf '%s' "$artifact_name" | tr '/:' '__' | tr ' ' '_')
-        
+
         temp_dir='${{ runner.temp }}/artifact-${{ github.run_id }}-$archive_name'
         is_dir=$([ -d "${{ inputs.path }}" ] && echo 'true' || echo 'false')
         is_compressed=$([ "${{ inputs.compressed }}" == 'true' ] && echo 'true' || echo 'false')
