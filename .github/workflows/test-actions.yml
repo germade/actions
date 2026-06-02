@@ -29,6 +29,7 @@ jobs:
           mkdir -p test-artifact/source/subdir
           printf 'hello\n' > test-artifact/source/file.txt
           printf 'world\n' > test-artifact/source/subdir/nested.txt
+          cp -R test-artifact/source test-artifact/expected
 
       - name: Save compressed artifact
         uses: ./artifact
@@ -54,7 +55,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          diff -ruN test-artifact/restored test-artifact/restored
+          diff -ruN test-artifact/expected test-artifact/restored
           test -f test-artifact/restored/file.txt
           test -f test-artifact/restored/subdir/nested.txt
           grep -Fx 'hello' test-artifact/restored/file.txt
