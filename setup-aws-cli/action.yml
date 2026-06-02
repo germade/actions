@@ -3,11 +3,16 @@ name: Setup AWS CLI
 description: Install and configure AWS CLI if not available
 
 inputs:
-  aws_oidc_role:
+  role-to-assume:
     description: AWS OIDC Role to assume for authentication
     required: true
     type: string
-  aws_region:
+  role-session-name:
+    description: AWS session name to use when assuming the role (defaults to gha-<run_id>-<run_attempt>)
+    required: false
+    type: string
+    default: gha-${{ github.run_id }}-${{ github.run_attempt }}
+  aws-region:
     description: AWS region to configure
     required: true
     type: string
@@ -31,6 +36,6 @@ runs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708  # v5.1.1
       with:
-        role-to-assume: ${{ inputs.aws_oidc_role }}
-        role-session-name: gha-${{ github.run_id }}-${{ github.run_attempt }}
-        aws-region: ${{ inputs.aws_region }}
+        role-to-assume: ${{ inputs.role-to-assume }}
+        role-session-name: ${{ inputs.role-session-name }}
+        aws-region: ${{ inputs.aws-region }}
