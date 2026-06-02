@@ -1,17 +1,16 @@
-
 name: Install Missing Commands
 description: Install missing Linux commands required by the workflow
 
 inputs:
   checkout:
     description: Whether to perform a git checkout before checking commands
-    # type can be boolean or string (e.g. "true"/"false" or checkout version like "v3")
+    # type can be boolean or string (e.g. "true"/"false" or checkout version like "v6")
     required: false
     default: false
   node-setup:
     description: Whether to setup Node.js using actions/setup-node before checking commands
+    # type can be boolean or string (e.g. "true"/"false" or node version like "v6")
     required: false
-    type: boolean
     default: false
   node-version:
     description: Node.js version to setup if node-setup is true (can be a version string or path to .nvmrc)
@@ -44,11 +43,11 @@ runs:
   steps:
     - name: Checkout code (optional)
       if: ${{ inputs.checkout }}
-      uses: actions/checkout@${{ inputs.checkout == 'true' || inputs.checkout == true ? 'v4' : inputs.checkout }}
+      uses: actions/checkout@${{ inputs.checkout == 'true' || inputs.checkout == true ? 'v6' : inputs.checkout }}
     
     - name: Setup Node (optional)
       if: ${{ inputs.node-setup }}
-      uses: actions/setup-node@v6
+      uses: actions/setup-node@${{ inputs.node-setup == 'true' || inputs.node-setup == true ? 'v6' : inputs.node-setup }}
       with:
         node-version: ${{ inputs.node-version }}
         node-version-file: ${{ inputs.node-version-file }}
