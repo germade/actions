@@ -38,7 +38,9 @@ runs:
           artifact_name='path-${{ inputs.path }}'
         fi
 
+        artifact_name=$(printf '%s' "$artifact_name" | tr '":<>|*?\r\n\\/' '_' | tr ' ' '_')
         archive_name=$(printf '%s' "$artifact_name" | tr '/:' '__' | tr ' ' '_')
+        
         temp_dir='${{ runner.temp }}/artifact-${{ github.run_id }}-$archive_name'
         is_dir=$([ -d "${{ inputs.path }}" ] && echo 'true' || echo 'false')
         is_compressed=$([ "${{ inputs.compressed }}" == 'true' ] && echo 'true' || echo 'false')
