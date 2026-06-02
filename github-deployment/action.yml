@@ -1,0 +1,126 @@
+
+name: GitHub Deploy
+description: Create and terminate a GitHub deployment
+inputs:
+  github-token:
+    description: GitHub token with permissions to create deployments
+    required: false
+    type: string
+    default: ${{ github.token }}
+    secret: true
+  github-api-version:
+    description: GitHub API version to use
+    required: false
+    type: string
+    default: 2026-03-10
+  create:
+    description: Whether to create the deployment
+    required: false
+    type: boolean
+    default: false
+  deployment-id:
+    description: ID of the deployment to update status for (if not creating a new deployment)
+    required: false
+    type: string
+    default: ""
+  success:
+    description: Whether the deployment was successful
+    required: false
+    type: boolean
+    default: false
+  close:
+    description: Whether to mark the deployment as inactive (closed)
+    required: false
+    type: boolean
+    default: false
+  environment:
+    description: Environment name for the deployment
+    required: true
+    type: string
+  target-url:
+    description: URL associated with the deployment environment (e.g. preview URL)
+    required: false
+    type: string
+    default: ""
+  ref:
+    description: Git ref (branch, tag, or commit SHA)
+    required: false
+    type: string
+    default: ${{ github.ref }}
+  auto-merge:
+    description: Whether to auto-merge the deployment
+    required: false
+    type: boolean
+    default: false
+outputs:
+  deployment_id:
+    description: The ID of the created deployment
+    value: ${{ steps.deployment.outputs.deployment_id }}
+runs:
+  using: composite
+  steps:
+    - name: Create Deployment
+      id: deployment
+      shell: bash
+      run: |
+        # create deployment if not provided, export enyway
+        if [ -z "${{ inputs.deployment-id }}" ]; then
+           echo "No deployment ID provided, creating new deployment..."
+        else
+           echo "Deployment ID provided: ${{ inputs.deployment-id }}, skipping creation..."
+           echo "deployment_id=${{ inputs.deployment-id }}" >> $GITHUB_OUTPUT
+           exit 0
+        fi
+
+        # export deployment_id = '' if input.create !== true or input.create !== 'true'
+        if [ "${{ inputs.create }}" != "true" ] && [ "${{ inputs.create }}" != "True" ]; then
+          echo "Input 'create' is not true, skipping deployment creation..."
+          echo "deployment_id=" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        RESPONSE=$(curl -s -X POST \
+          -H "Authorization: token ${{ inputs.github-token }}" \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: ${{ inputs.github-api-version }}" \
+          https://api.github.com/repos/${{ github.repository }}/deployments \
+          -d '{
+            "ref": "${{ inputs.ref }}",
+            "environment": "${{ inputs.environment }}",
+            "auto_merge": ${{ inputs.auto_merge }},
+            "description": "Deployment for ${{ inputs.environment }} environment",
+            "target_url": "${{ inputs.target-url }}"
+          }')
+        
+        DEPLOYMENT_ID=$(echo $RESPONSE | jq -r '.id')
+        echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+    - name: Update Deployment Status
+      id: update
+      if: steps.deployment.outputs.deployment_id != '' && (inputs.success == true || inputs.success == 'true')
+      shell: bash
+      run: |
+        curl -s -X POST \
+          -H "Authorization: token ${{ inputs.github-token }}" \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: ${{ inputs.github-api-version }}" \
+          https://api.github.com/repos/${{ github.repository }}/deployments/${{ steps.deployment.outputs.deployment_id }}/statuses \
+          -d "{
+            \"state\": \"success\",
+            \"description\": \"Deployment success\"
+          }"
+
+    - name: Mark Deployment as Inactive
+      id: close
+      if: steps.deployment.outputs.deployment_id != '' && (inputs.close == true || inputs.close == 'true')
+      shell: bash
+      run: |
+        curl -s -X POST \
+          -H "Authorization: token ${{ inputs.github-token }}" \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: ${{ inputs.github-api-version }}" \
+          https://api.github.com/repos/${{ github.repository }}/deployments/${{ steps.deployment.outputs.deployment_id }}/statuses \
+          -d "{
+            \"state\": \"inactive\",
+            \"description\": \"Deployment closed\"
+          }"
+    

@@ -1,0 +1,50 @@
+
+name: Export Story details
+description: Exports story details like ID, PR num and branch name based on branch and PR info, if available.
+
+outputs:
+  story-id:
+    description: The extracted story ID
+    value: ${{ steps.export-id.outputs.story-id }}
+  pr:
+    description: The PR num (if provided)
+    value: ${{ steps.export-id.outputs.pr-num }}
+  branch:
+    description: The branch name
+    value: ${{ steps.export-id.outputs.branch-name }}
+  ephemeral-folder:
+    description: The folder name to use for ephemeral deployments, based on story ID or PR num
+    value: ${{ steps.export-id.outputs.story-id || (steps.export-id.outputs.pr-num && format('pr-{0}', steps.export-id.outputs.pr-num)) || 'unknown' }}
+
+runs:
+  using: composite
+  steps:
+    - name: Export Story details
+      id: export-id
+      shell: bash
+      env:
+        GITHUB_REF: ${{ github.ref }}
+        GITHUB_HEAD_REF: ${{ github.head_ref }}
+        GITHUB_EVENT_PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: |
+        branch_name="${GITHUB_REF#refs/heads/}"
+        pr_ref="${GITHUB_HEAD_REF:-}"
+        pr_num="${GITHUB_EVENT_PR_NUMBER:-}"
+
+        if [ -n "$pr_ref" ]; then
+          branch_name="$pr_ref"
+        fi
+
+        if [ -z "$pr_num" ]; then
+          pr_num=$(echo "$GITHUB_REF" | sed -nE 's#^refs/pull/([0-9]+)/.*#\1#p')
+        fi
+
+        story_id=$(echo "$branch_name" | grep -ioE '[a-z]+-[0-9]+' | head -n1 | tr '[:upper:]' '[:lower:]' || true)
+
+        if [ -z "$story_id" ] && [ -n "$pr_ref" ]; then
+          story_id=$(echo "$pr_ref" | grep -ioE '[a-z]+-[0-9]+' | head -n1 | tr '[:upper:]' '[:lower:]' || true)
+        fi
+
+        echo "story-id=$story_id" >> "$GITHUB_OUTPUT"
+        echo "pr-num=$pr_num" >> "$GITHUB_OUTPUT"
+        echo "branch-name=$branch_name" >> "$GITHUB_OUTPUT"

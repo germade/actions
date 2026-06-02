@@ -1,0 +1,134 @@
+
+name: 'Artifact'
+description: 'Save or load a folder or file with optional compression'
+
+inputs:
+  path:
+    description: 'Path to save from or load into'
+    required: true
+  name:
+    description: 'Artifact name (defaults to path-<path> if omitted)'
+    required: false
+    default: ''
+  compressed:
+    description: 'Whether artifact is compressed (true/false)'
+    type: boolean
+    required: false
+    default: false
+  action:
+    description: "Artifact action: 'save' | 'load'"
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Resolve inputs
+      id: resolve
+      shell: bash
+      run: |
+        artifact_action='${{ inputs.action }}'
+
+        if [ "$artifact_action" != 'save' ] && [ "$artifact_action" != 'load' ]; then
+          echo "Invalid action '$artifact_action'. Expected 'save' or 'load'." >&2
+          exit 1
+        fi
+
+        artifact_name='${{ inputs.name }}'
+        if [ -z "$artifact_name" ]; then
+          artifact_name='path-${{ inputs.path }}'
+        fi
+
+        archive_name=$(printf '%s' "$artifact_name" | tr '/:' '__' | tr ' ' '_')
+        temp_dir='${{ runner.temp }}/artifact-${{ github.run_id }}-$archive_name'
+        is_dir=$([ -d "${{ inputs.path }}" ] && echo 'true' || echo 'false')
+        is_compressed=$([ "${{ inputs.compressed }}" == 'true' ] && echo 'true' || echo 'false')
+
+        echo "artifact_action=$artifact_action" >> "$GITHUB_OUTPUT"
+        echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
+        echo "archive_name=$archive_name" >> "$GITHUB_OUTPUT"
+        echo "temp_dir=$temp_dir" >> "$GITHUB_OUTPUT"
+        echo "is_dir=$is_dir" >> "$GITHUB_OUTPUT"
+        echo "is_compressed=$is_compressed" >> "$GITHUB_OUTPUT"
+
+    - name: Prepare compressed upload
+      if: ${{ steps.resolve.outputs.artifact_action == 'save' && (inputs.compressed == true || inputs.compressed == 'true') && steps.resolve.outputs.is_dir == 'true' }}
+      id: prepare_compressed_upload
+      shell: bash
+      run: |
+        mkdir -p "${{ steps.resolve.outputs.temp_dir }}"
+        cd "$(dirname "${{ inputs.path }}")"
+
+        tar -czf "${{ steps.resolve.outputs.temp_dir }}/${{ steps.resolve.outputs.archive_name }}.tar.gz" "$(basename "${{ inputs.path }}")"
+        echo "artifact_path=${{ steps.resolve.outputs.temp_dir }}/${{ steps.resolve.outputs.archive_name }}.tar.gz" >> "$GITHUB_OUTPUT"
+
+    - name: Upload artifact
+      if: ${{ steps.resolve.outputs.artifact_action == 'save' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.resolve.outputs.artifact_name }}
+        path: ${{ steps.resolve.outputs.is_compressed == 'true' && steps.resolve.outputs.is_dir == 'true' && steps.prepare_compressed_upload.outputs.artifact_path || inputs.path }}
+        retention-days: 1
+
+    - name: Download artifact
+      if: ${{ steps.resolve.outputs.artifact_action == 'load' }}
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ steps.resolve.outputs.artifact_name }}
+        path: ${{ steps.resolve.outputs.temp_dir }}
+
+    - name: Extract compressed artifact
+      if: ${{ steps.resolve.outputs.artifact_action == 'load' && (inputs.compressed == true || inputs.compressed == 'true') }}
+      shell: bash
+      run: |
+        shopt -s dotglob nullglob
+
+        temp_dir='${{ steps.resolve.outputs.temp_dir }}'
+        extract_dir="$temp_dir/extracted"
+        target_path='${{ inputs.path }}'
+        archive_path="$temp_dir/${{ steps.resolve.outputs.archive_name }}.tar.gz"
+        items=()
+
+        mkdir -p "$(dirname "$target_path")"
+        rm -rf "$target_path"
+
+        mkdir -p "$extract_dir"
+        tar -xzf "$archive_path" -C "$extract_dir"
+        items=("$extract_dir"/*)
+
+        if [ ${#items[@]} -eq 0 ]; then
+          echo "No files found after extracting compressed artifact: $archive_path" >&2
+          exit 1
+        fi
+
+        if [ ${#items[@]} -eq 1 ]; then
+          mv "${items[0]}" "$target_path"
+        else
+          mkdir -p "$target_path"
+          mv "${items[@]}" "$target_path/"
+        fi
+
+    - name: Restore uncompressed artifact
+      if: ${{ steps.resolve.outputs.artifact_action == 'load' && !(inputs.compressed == true || inputs.compressed == 'true') }}
+      shell: bash
+      run: |
+        shopt -s dotglob nullglob
+
+        temp_dir='${{ steps.resolve.outputs.temp_dir }}'
+        target_path='${{ inputs.path }}'
+        items=("$temp_dir"/*)
+
+        mkdir -p "$(dirname "$target_path")"
+
+        if [ ${#items[@]} -eq 0 ]; then
+          echo "No files found in downloaded artifact: ${{ steps.resolve.outputs.artifact_name }}" >&2
+          exit 1
+        fi
+
+        rm -rf "$target_path"
+
+        if [ ${#items[@]} -eq 1 ]; then
+          mv "${items[0]}" "$target_path"
+        else
+          mkdir -p "$target_path"
+          mv "${items[@]}" "$target_path/"
+        fi

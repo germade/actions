@@ -1,0 +1,203 @@
+
+name: 'GitHub Release'
+description: 'Create a GitHub release'
+
+inputs:
+  github-token:
+    description: 'GitHub token with permissions to create releases'
+    required: false
+    type: string
+    default: ${{ github.token }}
+    secret: true
+  github-api-version:
+    description: 'GitHub API version to use'
+    required: false
+    type: string
+    default: 2026-03-10
+  tag:
+    description: 'Release tag'
+    required: true
+    type: string
+  target-commitish:
+    description: 'Target commitish (branch, tag, or SHA) for the release'
+    required: false
+    type: string
+    default: ${{ github.ref_name }}
+  attachments:
+    description: 'Multiline attachments. One per line: file_path or file_path -> file_name'
+    required: false
+    type: string
+  changelog:
+    description: 'Changelog content for the release (optional, can be generated automatically if get_changelog is true)'
+    required: false
+    type: string
+  get_changelog:
+    description: 'Whether to return changelog'
+    required: false
+    type: boolean
+    default: 'false'
+
+outputs:
+  release-id:
+    description: 'Created or existing release ID'
+    value: ${{ steps.release.outputs.release-id }}
+  release-json:
+    description: 'Full JSON response of the created or existing release'
+    value: ${{ steps.release.outputs.release-json }}
+  changelog:
+    description: 'Release changelog body (empty when not requested)'
+    value: ${{ steps.changelog.outputs.changelog }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Create GitHub release if not exists
+      shell: bash
+      id: release
+      run: |
+        # fetch existing release by tag
+        response=$(curl -sSL -H "Authorization: Bearer ${{ inputs.github-token }}" \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: ${{ inputs.github-api-version }}" \
+          "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ inputs.tag }}")
+
+        release_id=$(echo "$response" | jq -r '.id // empty')
+
+        if [ -n "$release_id" ]; then
+          echo "Release with tag '${{ inputs.tag }}' already exists with ID: $release_id"
+          echo "release-id=$release_id" >> "$GITHUB_OUTPUT"
+          echo "release-json=$response" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        echo "No existing release found with tag '${{ inputs.tag }}', creating new release..."
+
+        if [ "${{ inputs.get_changelog }}" = "true" ]; then
+          generate_release_notes=true
+        else
+          generate_release_notes=false
+        fi
+
+        release_payload=$(jq -n \
+          --arg tag "${{ inputs.tag }}" \
+          --arg target_commitish "${{ inputs.target-commitish }}" \
+          --arg changelog "${{ inputs.changelog }}" \
+          --argjson generate_release_notes "$generate_release_notes" \
+          '{
+            tag_name: $tag,
+            target_commitish: $target_commitish,
+            name: $tag,
+            draft: false,
+            prerelease: false
+          } + (
+            if $changelog != "" then
+              { body: $changelog, generate_release_notes: false }
+            else
+              { generate_release_notes: $generate_release_notes }
+            end
+          )')
+
+        create_response=$(curl -sSL -X POST \
+          -H "Authorization: Bearer ${{ inputs.github-token }}" \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: ${{ inputs.github-api-version }}" \
+          -H "Content-Type: application/json" \
+          "https://api.github.com/repos/${{ github.repository }}/releases" \
+          -d "$release_payload")
+
+        release_id=$(echo "$create_response" | jq -r '.id // empty')
+
+        if [ -z "$release_id" ]; then
+          echo "Failed to create release. Response:"
+          echo "$create_response"
+          exit 1
+        fi
+
+        echo "Release created with ID: $release_id"
+        echo "release-id=$release_id" >> "$GITHUB_OUTPUT"
+        echo "release-json=$create_response" >> "$GITHUB_OUTPUT"
+
+    - name: Upload attachments
+      shell: bash
+      run: |
+        # get assets from release JSON response to check for existing attachments
+        assets=$(echo "${{ steps.release.outputs.release-json }}" | jq -r '.assets[]?.name')
+
+        trim() {
+          local value="$1"
+          value="${value#"${value%%[![:space:]]*}"}"
+          value="${value%"${value##*[![:space:]]}"}"
+          printf '%s' "$value"
+        }
+
+        # exit if no attachments
+        if [ -z "${{ inputs.attachments }}" ]; then
+          echo "No attachments to upload."
+          exit 0
+        fi
+
+        # iterate over attachments input (newline-separated)
+        while IFS= read -r line; do
+          line=$(trim "$line")
+          if [ -z "$line" ]; then
+            continue
+          fi
+
+          if [[ "$line" == *"->"* ]]; then
+            file_path=$(trim "${line%%->*}")
+            file_name=$(trim "${line#*->}")
+          else
+            file_path="$line"
+            file_name=""
+          fi
+
+          if [ -z "$file_path" ]; then
+            echo "Warning: Invalid attachment line '$line', skipping." >&2
+            continue
+          fi
+
+          if [ ! -f "$file_path" ]; then
+            echo "Warning: Attachment file '$file_path' does not exist, skipping." >&2
+            continue
+          fi
+
+          if [ -z "$file_name" ]; then
+            file_name=$(basename "$file_path")
+          fi
+
+          if echo "$assets" | grep -Fxq "$file_name"; then
+            echo "Attachment '$file_name' already exists for this release, skipping upload."
+            continue
+          fi
+
+          encoded_file_name=$(jq -nr --arg value "$file_name" '$value|@uri')
+
+          echo "Uploading attachment '$file_name' from '$file_path'..."
+          upload_response=$(curl -sSL -X POST \
+            -H "Authorization: Bearer ${{ inputs.github-token }}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: ${{ inputs.github-api-version }}" \
+            -H "Content-Type: $(file -b --mime-type "$file_path")" \
+            --data-binary @"$file_path" \
+            "https://uploads.github.com/repos/${{ github.repository }}/releases/${{ steps.release.outputs.release-id }}/assets?name=$encoded_file_name")
+
+          if echo "$upload_response" | jq -e '.id' > /dev/null; then
+            echo "Attachment '$file_name' uploaded successfully."
+            assets="$(printf '%s\n%s' "$assets" "$file_name")"
+          else
+            echo "Failed to upload attachment '$file_name'. Response:"
+            echo "$upload_response"
+          fi
+        done <<< "${{ inputs.attachments }}"
+
+    - name: Generate changelog
+      id: changelog
+      if: ${{ inputs.get_changelog == true || inputs.get_changelog == 'true' }}
+      shell: bash
+      run: |
+        # recover from release-json output to get the generated changelog (if it was generated)
+        release_json="${{ steps.release.outputs.release-json }}"
+        changelog=$(echo "$release_json" | jq -r '.body // empty')
+
+        echo "changelog=$changelog" >> "$GITHUB_OUTPUT"
+

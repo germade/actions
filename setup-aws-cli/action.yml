@@ -1,0 +1,36 @@
+
+name: Setup AWS CLI
+description: Install and configure AWS CLI if not available
+
+inputs:
+  aws_oidc_role:
+    description: AWS OIDC Role to assume for authentication
+    required: true
+    type: string
+  aws_region:
+    description: AWS region to configure
+    required: true
+    type: string
+
+runs:
+  using: composite
+  steps:
+    - name: Check if AWS CLI is installed
+      shell: bash
+      run: |
+        if ! command -v aws &> /dev/null; then
+          echo "AWS CLI not found, installing..."
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
+          rm -rf aws awscliv2.zip
+        else
+          echo "AWS CLI is already installed"
+          aws --version
+        fi
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708  # v5.1.1
+      with:
+        role-to-assume: ${{ inputs.aws_oidc_role }}
+        role-session-name: gha-${{ github.run_id }}-${{ github.run_attempt }}
+        aws-region: ${{ inputs.aws_region }}

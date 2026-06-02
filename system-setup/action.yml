@@ -1,0 +1,89 @@
+
+name: Install Missing Commands
+description: Install missing Linux commands required by the workflow
+
+inputs:
+  checkout:
+    description: Whether to perform a git checkout before checking commands
+    required: false
+    type: boolean
+    default: false
+  node-setup:
+    description: Whether to setup Node.js using actions/setup-node before checking commands
+    required: false
+    type: boolean
+    default: false
+  node-version:
+    description: Node.js version to setup if node-setup is true (can be a version string or path to .nvmrc)
+    required: false
+    type: string
+    default: ""
+  node-version-file:
+    description: Path to file containing Node.js version (e.g. .nvmrc) to setup if node-setup is true
+    required: false
+    type: string
+    default: ""
+  install-node-dependencies:
+    description: Whether to run 'npm install' after setting up Node.js
+    required: false
+    type: boolean
+    default: false
+  install-node-dependencies-no-save:
+    description: Whether to run 'npm install --no-save' instead of 'npm install'
+    required: false
+    type: boolean
+    default: false
+  install-linux-commands:
+    description: Commands to check and install
+    required: false
+    type: string
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout code (optional)
+      if: ${{ inputs.checkout }}
+      uses: actions/checkout@v6
+    
+    - name: Setup Node (optional)
+      if: ${{ inputs.node-setup }}
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node-version }}
+        node-version-file: ${{ inputs.node-version-file }}
+
+    - name: Install Node.js dependencies (optional)
+      shell: bash
+      if: ${{ inputs.install-node-dependencies }}
+      run: rm -f package-lock.json && npm install
+    
+    - name: Install Node.js dependencies (optional, no-save)
+      shell: bash
+      if: ${{ inputs.install-node-dependencies-no-save }}
+      run: npm install --no-save
+    
+    - name: Check and install missing commands
+      if: ${{ inputs.install-linux-commands != '' }}
+      shell: bash
+      run: |
+        CHECK_COMMANDS=(${{ inputs.install-linux-commands }})
+
+        MISSING_COMMANDS=()
+
+        for cmd in "${CHECK_COMMANDS[@]}"; do
+          if ! command -v "$cmd" &> /dev/null; then
+            echo "$cmd could not be found, marking for installation..."
+            MISSING_COMMANDS+=("$cmd")
+          else
+            echo "$cmd is already installed"
+          fi
+        done
+
+        if [ ${#MISSING_COMMANDS[@]} -gt 0 ]; then
+          echo "Installing missing packages: ${MISSING_COMMANDS[*]}"
+          sudo apt-get update
+          sudo apt-get install -y "${MISSING_COMMANDS[@]}"
+        else
+          echo "All required commands are available"
+        fi

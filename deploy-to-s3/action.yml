@@ -1,0 +1,63 @@
+
+name: Deploy to S3
+description: Deploy build artifacts to S3
+
+inputs:
+  profile:
+    description: AWS CLI profile to use for deployment
+    required: true
+    type: string
+  bucket-target:
+    description: S3 bucket to deploy to
+    required: true
+    type: string
+  source-path:
+    description: Local directory or file containing build artifacts to deploy
+    required: true
+    type: string
+  bucket-path:
+    description: S3 destination directory (prefix) to deploy to
+    required: false
+    type: string
+    default: ""
+  acl:
+    description: Canned ACL to apply to deployed files (e.g. "public-read")
+    required: false
+    type: string
+    default: "private"
+  no-cache:
+    description: Pattern to exclude from caching (e.g. "*.html")
+    required: false
+    type: boolean
+    default: false
+
+runs:
+  using: composite
+  steps:
+  - name: Deploy to S3
+    shell: bash
+    run: |
+      # exit if bucket-target is empty
+      if [ -z "${{ inputs.bucket-target }}" ]; then
+        echo "Bucket target is required" >&2
+        exit 1
+      fi
+
+      aws s3 sync ${{ inputs.source-path }} s3://${{ inputs.bucket-target }}${{ inputs.bucket-path && format('/{0}', inputs.bucket-path) || '' }} \
+          --profile ${{ inputs.profile }} \
+          --acl ${{ inputs.acl }} \
+          ${{
+            inputs.no-cache && format('--exclude {0}', inputs.no-cache) || ''
+          }} \
+          --cache-control "private, max-age:3600" \
+          --delete
+
+      if [ "${{ inputs.no-cache }}" != "false" ]; then
+        aws s3 cp ${{ inputs.source-path }} s3://${{ inputs.bucket-target }}${{ inputs.bucket-path && format('/{0}', inputs.bucket-path) || '' }} \
+            --profile ${{ inputs.profile }} \
+            --acl ${{ inputs.acl }} \
+            --recursive \
+            --exclude "*" \
+            --include "${{ inputs.no-cache }}" \
+            --cache-control "no-cache, no-store"
+      fi
