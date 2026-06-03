@@ -135,8 +135,16 @@ runs:
     - name: Upload attachments
       shell: bash
       run: |
-        # get assets from release JSON response to check for existing attachments
-        assets=$(echo "${{ steps.release.outputs.release-json }}" | jq -r '.assets[]?.name')
+        release_id="${{ steps.release.outputs.release-id }}"
+
+        # fetch current release data to check for existing attachments
+        release_response=$(curl -sSL \
+          -H "Authorization: Bearer ${{ inputs.github-token }}" \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: ${{ inputs.github-api-version }}" \
+          "https://api.github.com/repos/${{ github.repository }}/releases/$release_id")
+
+        assets=$(echo "$release_response" | jq -r '.assets[]?.name // empty')
 
         trim() {
           local value="$1"
