@@ -83,7 +83,7 @@ runs:
           -H "X-GitHub-Api-Version: ${{ inputs.github-api-version }}" \
           https://api.github.com/repos/${{ github.repository }}/deployments \
           -d '{
-            "ref": "${{ inputs.ref_name }}",
+            "ref": "${{ inputs.ref }}",
             "environment": "${{ inputs.environment }}",
             "auto_merge": ${{ (inputs.auto-merge == 'true' || inputs.auto-merge == true) && 'true' || 'false' }},
             "description": "Deployment for ${{ inputs.environment }} environment",
