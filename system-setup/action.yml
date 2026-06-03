@@ -74,12 +74,12 @@ runs:
 
     - name: Install Node.js dependencies (optional)
       shell: bash
-      if: ${{ inputs.install-node-dependencies }}
+      if: ${{ inputs.install-node-dependencies == 'true' || inputs.install-node-dependencies == true }}
       run: rm -f package-lock.json && npm install
     
     - name: Install Node.js dependencies (optional, no-save)
       shell: bash
-      if: ${{ inputs.install-node-dependencies-no-save }}
+      if: ${{ inputs.install-node-dependencies-no-save == 'true' || inputs.install-node-dependencies-no-save == true }}
       run: npm install --no-save
     
     - name: Check and install missing commands
