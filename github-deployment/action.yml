@@ -33,6 +33,11 @@ inputs:
     required: false
     type: boolean
     default: false
+  state:
+    description: Custom state for the deployment status (overrides success/close)
+    required: false
+    type: string
+    default: ""
   environment:
     description: Environment name for the deployment
     required: true
@@ -96,7 +101,7 @@ runs:
         echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
     - name: Update Deployment Status
       id: update
-      if: steps.deployment.outputs.deployment_id != '' && (inputs.success == true || inputs.success == 'true')
+      if: steps.deployment.outputs.deployment_id != '' && (inputs.success == true || inputs.success == 'true' || inputs.state != '')
       shell: bash
       run: |
         curl -s -X POST \
@@ -105,13 +110,13 @@ runs:
           -H "X-GitHub-Api-Version: ${{ inputs.github-api-version }}" \
           https://api.github.com/repos/${{ github.repository }}/deployments/${{ steps.deployment.outputs.deployment_id }}/statuses \
           -d "{
-            \"state\": \"success\",
+            \"state\": \"${{ inputs.state != '' && inputs.state || 'success' }}\",
             \"description\": \"Deployment success\"
           }"
 
     - name: Mark Deployment as Inactive
       id: close
-      if: steps.deployment.outputs.deployment_id != '' && (inputs.close == true || inputs.close == 'true')
+      if: steps.deployment.outputs.deployment_id != '' && (inputs.close == true || inputs.close == 'true') && inputs.state == ''
       shell: bash
       run: |
         curl -s -X POST \
