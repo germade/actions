@@ -68,8 +68,14 @@ runs:
 
         if [ -n "$release_id" ]; then
           echo "Release with tag '${{ inputs.tag }}' already exists with ID: $release_id"
+          release_tag=$(echo "$response" | jq -r '.tag_name // empty')
           echo "release-id=$release_id" >> "$GITHUB_OUTPUT"
-          echo "release-json=$response" >> "$GITHUB_OUTPUT"
+          echo "release-tag=$release_tag" >> "$GITHUB_OUTPUT"
+          {
+            echo "release-json<<EOF"
+            echo "$response"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
           exit 0
         fi
 
@@ -120,7 +126,11 @@ runs:
         echo "Release created with ID: $release_id"
         echo "release-id=$release_id" >> "$GITHUB_OUTPUT"
         echo "release-tag=$release_tag" >> "$GITHUB_OUTPUT"
-        echo "release-json=$create_response" >> "$GITHUB_OUTPUT"
+        {
+          echo "release-json<<EOF"
+          echo "$create_response"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
 
     - name: Upload attachments
       shell: bash
@@ -204,5 +214,9 @@ runs:
         release_json="${{ steps.release.outputs.release-json }}"
         changelog=$(echo "$release_json" | jq -r '.body // empty')
 
-        echo "changelog=$changelog" >> "$GITHUB_OUTPUT"
+        {
+          echo "changelog<<EOF"
+          echo "$changelog"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
 
