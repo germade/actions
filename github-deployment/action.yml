@@ -51,7 +51,7 @@ inputs:
     description: Git ref (branch, tag, or commit SHA)
     required: false
     type: string
-    default: ${{ github.ref_name }}
+    default: ${{ github.head_ref || github.ref_name }}
   auto-merge:
     description: Whether to auto-merge the deployment
     required: false
