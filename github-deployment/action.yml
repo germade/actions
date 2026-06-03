@@ -42,6 +42,11 @@ inputs:
     required: false
     type: string
     default: ""
+  deployment-url:
+    description: URL to link in the deployment status (e.g. CI build URL)
+    required: false
+    type: string
+    default: ""
   ref:
     description: Git ref (branch, tag, or commit SHA)
     required: false
@@ -110,7 +115,7 @@ runs:
           -d "{
             \"state\": \"${{ inputs.state != '' && inputs.state || 'success' }}\",
             \"description\": \"Deployment success\",
-            \"deployment_url\": \"${{ inputs.target-url }}\"
+            \"deployment_url\": \"${{ inputs.deployment-url || inputs.target-url }}\"
           }"
 
     - name: Mark Deployment as Inactive
