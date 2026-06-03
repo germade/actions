@@ -5,16 +5,16 @@ description: Exports story details like ID, PR num and branch name based on bran
 outputs:
   story-id:
     description: The extracted story ID
-    value: ${{ steps.export-id.outputs.story-id }}
+    value: ${{ steps.export-id.outputs.story_id }}
   pr:
     description: The PR num (if provided)
-    value: ${{ steps.export-id.outputs.pr-num }}
+    value: ${{ steps.export-id.outputs.pr_num }}
   branch:
     description: The branch name
-    value: ${{ steps.export-id.outputs.branch-name }}
+    value: ${{ steps.export-id.outputs.branch_name }}
   ephemeral-folder:
     description: The folder name to use for ephemeral deployments, based on story ID or PR num
-    value: ${{ steps.export-id.outputs.story-id || (steps.export-id.outputs.pr-num && format('pr-{0}', steps.export-id.outputs.pr-num)) || 'unknown' }}
+    value: ${{ steps.export-id.outputs.story_id || (steps.export-id.outputs.pr_num && format('pr-{0}', steps.export-id.outputs.pr_num)) || 'unknown' }}
 
 runs:
   using: composite
@@ -37,7 +37,17 @@ runs:
 
         extract_story_id() {
           local candidate="${1:-}"
+          local segment
+
           candidate=$(printf '%s' "$candidate" | tr '[:upper:]' '[:lower:]')
+
+          IFS='/' read -r -a segments <<< "$candidate"
+          for segment in "${segments[@]}"; do
+            if [[ "$segment" =~ ^[[:alnum:]][[:alnum:]-]*-[0-9]+$ ]]; then
+              printf '%s' "$segment"
+              return 0
+            fi
+          done
 
           if [[ "$candidate" =~ ([[:alnum:]][[:alnum:]-]*-[0-9]+) ]]; then
             printf '%s' "${BASH_REMATCH[1]}"
@@ -50,6 +60,6 @@ runs:
           story_id=$(extract_story_id "$pr_ref" || true)
         fi
 
-        echo "story-id=$story_id" >> "$GITHUB_OUTPUT"
-        echo "pr-num=$pr_num" >> "$GITHUB_OUTPUT"
-        echo "branch-name=$branch_name" >> "$GITHUB_OUTPUT"
+        echo "story_id=$story_id" >> "$GITHUB_OUTPUT"
+        echo "pr_num=$pr_num" >> "$GITHUB_OUTPUT"
+        echo "branch_name=$branch_name" >> "$GITHUB_OUTPUT"
