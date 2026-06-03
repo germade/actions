@@ -92,7 +92,7 @@ runs:
           -d '{
             "ref": "${{ inputs.ref }}",
             "environment": "${{ inputs.environment }}",
-            "auto_merge": ${{ inputs.auto_merge }},
+            "auto_merge": ${{ inputs.auto_merge || false }},
             "description": "Deployment for ${{ inputs.environment }} environment",
             "target_url": "${{ inputs.target-url }}"
           }')
