@@ -3,22 +3,20 @@ description: Install missing Linux commands required by the workflow
 
 inputs:
   checkout:
-    description: Whether to perform a git checkout before checking commands
-    # type can be boolean or string (e.g. "true"/"false" or checkout version like "v6")
+    description: Whether to perform a git checkout before checking commands (false, true, v4, v5, or v6)
     required: false
     default: false
-  node-setup:
-    description: Whether to setup Node.js using actions/setup-node before checking commands
-    # type can be boolean or string (e.g. "true"/"false" or node version like "v6")
+  setup-node:
+    description: Whether to setup Node.js using actions/setup-node before checking commands (false, true, v4, v5, or v6)
     required: false
     default: false
   node-version:
-    description: Node.js version to setup if node-setup is true (can be a version string or path to .nvmrc)
+    description: Node.js version to setup if setup-node is enabled (can be a version string or path to .nvmrc)
     required: false
     type: string
     default: ""
   node-version-file:
-    description: Path to file containing Node.js version (e.g. .nvmrc) to setup if node-setup is true
+    description: Path to file containing Node.js version (e.g. .nvmrc) to setup if setup-node is enabled
     required: false
     type: string
     default: ""
@@ -41,23 +39,35 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Versions
-      id: versions
-      shell: bash
-      run: |
-        checkout_version="${{ (inputs.checkout == 'true' || inputs.checkout == true) && 'v6' || inputs.checkout }}"
-        echo "checkout_version=$checkout_version" >> "$GITHUB_OUTPUT"
-
-        node_setup_version="${{ (inputs.node-setup == 'true' || inputs.node-setup == true) && 'v6' || inputs.node-setup }}"
-        echo "node_setup_version=$node_setup_version" >> "$GITHUB_OUTPUT"
-  
     - name: Checkout code (optional)
-      if: ${{ inputs.checkout }}
-      uses: actions/checkout@${{ steps.versions.outputs.checkout_version }}
+      if: ${{ inputs.checkout == 'v4' }}
+      uses: actions/checkout@v4
+
+    - name: Checkout code (optional)
+      if: ${{ inputs.checkout == 'v5' }}
+      uses: actions/checkout@v5
+    
+    - name: Checkout code (optional)
+      if: ${{ inputs.checkout == 'true' || inputs.checkout == true || inputs.checkout == 'v6' }}
+      uses: actions/checkout@v6
+
+    - name: Setup Node (optional)
+      if: ${{ inputs.setup-node == 'v4' }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+        node-version-file: ${{ inputs.node-version-file }}
+
+    - name: Setup Node (optional)
+      if: ${{ inputs.setup-node == 'v5' }}
+      uses: actions/setup-node@v5
+      with:
+        node-version: ${{ inputs.node-version }}
+        node-version-file: ${{ inputs.node-version-file }}
     
     - name: Setup Node (optional)
-      if: ${{ inputs.node-setup }}
-      uses: actions/setup-node@${{ steps.versions.outputs.node_setup_version }}
+      if: ${{ inputs.setup-node == 'true' || inputs.setup-node == true || inputs.setup-node == 'v6' }}
+      uses: actions/setup-node@v6
       with:
         node-version: ${{ inputs.node-version }}
         node-version-file: ${{ inputs.node-version-file }}

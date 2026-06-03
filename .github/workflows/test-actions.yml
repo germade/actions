@@ -273,8 +273,23 @@ jobs:
           test "$OUTPUT_EPHEMERAL_FOLDER" = "$expected_ephemeral"
 
   system_setup:
-    name: System Setup
+    name: System Setup (${{ matrix.label }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - label: v4
+            checkout_input: v4
+            setup_node_input: v4
+            node_version: '24'
+          - label: v5
+            checkout_input: v5
+            setup_node_input: v5
+            node_version: '24'
+          - label: v6-default
+            checkout_input: 'true'
+            setup_node_input: 'true'
+            node_version: '24'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -282,11 +297,21 @@ jobs:
       - name: Run system setup action
         uses: ./system-setup
         with:
+          checkout: ${{ matrix.checkout_input }}
+          setup-node: ${{ matrix.setup_node_input }}
+          node-version: ${{ matrix.node_version }}
           install-linux-commands: bash tar
 
-      - name: Verify commands remain available
+      - name: Verify system setup behavior
         shell: bash
         run: |
           set -euo pipefail
+
+          test -f README.md
+          test "$(git rev-parse --is-inside-work-tree)" = "true"
+
           command -v bash
           command -v tar
+
+          node_major="$(node --version | sed -E 's/^v([0-9]+).*/\1/')"
+          test "$node_major" = "${{ matrix.node_version }}"

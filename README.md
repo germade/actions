@@ -221,13 +221,17 @@ Example:
 Optional environment preparation for Linux runners.
 
 Inputs:
-- `checkout` (optional, default: `false`): Run checkout first.
-- `node-setup` (optional, default: `false`): Run setup-node.
+- `checkout` (optional, default: `false`): Run `actions/checkout`. Accepted values: `false`, `true`, `v4`, `v5`, `v6`. `true` maps to `v6`.
+- `setup-node` (optional, default: `false`): Run `actions/setup-node`. Accepted values: `false`, `true`, `v4`, `v5`, `v6`. `true` maps to `v6`.
 - `node-version` (optional, default: `""`): Node version string.
 - `node-version-file` (optional, default: `""`): Version file path, for example `.nvmrc`.
 - `install-node-dependencies` (optional, default: `false`): Run `npm install`.
 - `install-node-dependencies-no-save` (optional, default: `false`): Run `npm install --no-save`.
 - `install-linux-commands` (optional, default: `""`): Space-separated commands/packages to install when missing.
+
+Breaking change: the input name `node-setup` was renamed to `setup-node`.
+
+Composite action `uses:` refs still have to be static. Version selection is implemented with separate conditional steps for the supported versions above.
 
 Outputs:
 - None declared.
@@ -239,7 +243,7 @@ Example:
   uses: ./system-setup
   with:
     checkout: true
-    node-setup: true
+    setup-node: true
     node-version-file: .nvmrc
     install-node-dependencies: true
     install-linux-commands: jq yq
