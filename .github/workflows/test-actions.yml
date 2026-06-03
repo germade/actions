@@ -257,7 +257,16 @@ jobs:
           set -euo pipefail
           expected_branch="${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}"
           expected_pr="${GITHUB_EVENT_PR_NUMBER:-}"
-          expected_story_id=$(echo "$expected_branch" | grep -ioE '[a-z]+-[0-9]+' | head -n1 | tr '[:upper:]' '[:lower:]' || true)
+          extract_story_id() {
+            local candidate="${1:-}"
+            candidate=$(printf '%s' "$candidate" | tr '[:upper:]' '[:lower:]')
+
+            if [[ "$candidate" =~ ([[:alnum:]][[:alnum:]-]*-[0-9]+) ]]; then
+              printf '%s' "${BASH_REMATCH[1]}"
+            fi
+          }
+
+          expected_story_id=$(extract_story_id "$expected_branch" || true)
 
           if [ -n "$expected_story_id" ]; then
             expected_ephemeral="$expected_story_id"
