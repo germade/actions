@@ -6,6 +6,9 @@ outputs:
   story-id:
     description: The extracted story ID
     value: ${{ steps.export-id.outputs.story_id }}
+  story_id:
+    description: The extracted story ID (underscore alias)
+    value: ${{ steps.export-id.outputs.story_id }}
   pr:
     description: The PR num (if provided)
     value: ${{ steps.export-id.outputs.pr_num }}
@@ -37,21 +40,17 @@ runs:
 
         extract_story_id() {
           local candidate="${1:-}"
-          local segment
+          local token=""
 
           candidate=$(printf '%s' "$candidate" | tr '[:upper:]' '[:lower:]')
 
-          IFS='/' read -r -a segments <<< "$candidate"
-          for segment in "${segments[@]}"; do
-            if [[ "$segment" =~ ^[[:alnum:]][[:alnum:]-]*-[0-9]+$ ]]; then
-              printf '%s' "$segment"
-              return 0
-            fi
-          done
-
-          if [[ "$candidate" =~ ([[:alnum:]][[:alnum:]-]*-[0-9]+) ]]; then
-            printf '%s' "${BASH_REMATCH[1]}"
+          # Extract the first token like abc-123 from any branch/ref shape.
+          token=$(printf '%s' "$candidate" | grep -Eo '[[:alnum:]][[:alnum:]-]*-[0-9]+' | head -n1 || true)
+          if [ -n "$token" ]; then
+            printf '%s' "$token"
           fi
+
+          return 0
         }
 
         story_id=$(extract_story_id "$branch_name" || true)
@@ -61,5 +60,6 @@ runs:
         fi
 
         echo "story_id=$story_id" >> "$GITHUB_OUTPUT"
+        echo "story-id=$story_id" >> "$GITHUB_OUTPUT"
         echo "pr_num=$pr_num" >> "$GITHUB_OUTPUT"
         echo "branch_name=$branch_name" >> "$GITHUB_OUTPUT"
