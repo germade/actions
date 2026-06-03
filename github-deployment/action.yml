@@ -72,7 +72,7 @@ runs:
            exit 0
         fi
 
-        RESPONSE=$(curl -s -X POST \
+        curl -s -X POST \
           -H "Authorization: token ${{ inputs.github-token }}" \
           -H "Accept: application/vnd.github+json" \
           -H "X-GitHub-Api-Version: ${{ inputs.github-api-version }}" \
@@ -83,13 +83,15 @@ runs:
             "auto_merge": ${{ (inputs.auto-merge == 'true' || inputs.auto-merge == true) && 'true' || 'false' }},
             "description": "Deployment for ${{ inputs.environment }} environment",
             "target_url": "${{ inputs.target-url }}"
-          }')
+          }' > response.json
+
+        cat response.json
         
-        DEPLOYMENT_ID=$(echo $RESPONSE | jq -r '.id')
+        DEPLOYMENT_ID=$(jq -r '.id' response.json)
         echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
 
         if [ -z "$DEPLOYMENT_ID" ] || [ "$DEPLOYMENT_ID" = "null" ]; then
-          echo "Failed to create deployment. Response: $RESPONSE" >&2
+          echo "Failed to create deployment. Response: $(cat response.json)" >&2
           exit 1
         else 
           echo "Deployment created with ID: $DEPLOYMENT_ID"
