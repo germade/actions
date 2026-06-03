@@ -30,6 +30,11 @@ inputs:
     required: false
     type: boolean
     default: false
+  delete:
+    description: Whether to delete files in the target S3 location that are not present in the source path
+    required: false
+    type: boolean
+    default: false
 
 runs:
   using: composite
@@ -50,7 +55,9 @@ runs:
             inputs.no-cache && format('--exclude {0}', inputs.no-cache) || ''
           }} \
           --cache-control "private, max-age:3600" \
-          --delete
+          ${{
+            inputs.delete && '--delete' || ''
+          }}
 
       if [ "${{ inputs.no-cache }}" != "false" ]; then
         aws s3 cp ${{ inputs.source-path }} s3://${{ inputs.bucket-target }}${{ inputs.bucket-path && format('/{0}', inputs.bucket-path) || '' }} \
