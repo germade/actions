@@ -35,6 +35,39 @@ From a different repository, reference this repo and a ref (tag/branch/SHA):
 - uses: <owner>/germade-actions/story-details@<ref>
 ```
 
+## Local Testing
+
+Run the GitHub Actions test workflow locally with the provided Dockerfile.
+
+Build the test image:
+
+```bash
+docker build -t germade-actions-tests .
+```
+
+Run the full test workflow:
+
+```bash
+docker run --rm \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$PWD":"$PWD" \
+  -w "$PWD" \
+  germade-actions-tests
+```
+
+Run only the `system_setup` job:
+
+```bash
+docker run --rm \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$PWD":"$PWD" \
+  -w "$PWD" \
+  germade-actions-tests \
+  -j system_setup
+```
+
+If you are on Apple Silicon and runner images fail to start, add `--container-architecture linux/amd64` to the final command.
+
 ## Action Reference
 
 ### 1) Artifact (`artifact`)
