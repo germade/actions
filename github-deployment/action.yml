@@ -78,7 +78,7 @@ runs:
           -H "X-GitHub-Api-Version: ${{ inputs.github-api-version }}" \
           https://api.github.com/repos/${{ github.repository }}/deployments \
           -d '{
-            "ref": "${{ inputs.ref }}",
+            "ref": "${{ inputs.ref_name }}",
             "environment": "${{ inputs.environment }}",
             "auto_merge": ${{ (inputs.auto-merge == 'true' || inputs.auto-merge == true) && 'true' || 'false' }},
             "description": "Deployment for ${{ inputs.environment }} environment",
@@ -109,7 +109,8 @@ runs:
           https://api.github.com/repos/${{ github.repository }}/deployments/${{ steps.deployment.outputs.deployment_id }}/statuses \
           -d "{
             \"state\": \"${{ inputs.state != '' && inputs.state || 'success' }}\",
-            \"description\": \"Deployment success\"
+            \"description\": \"Deployment success\",
+            \"deployment_url\": \"${{ inputs.target-url }}\"
           }"
 
     - name: Mark Deployment as Inactive
