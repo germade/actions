@@ -77,21 +77,31 @@ runs:
            exit 0
         fi
 
+        jq -n \
+          --arg ref "${{ inputs.ref }}" \
+          --arg environment "${{ inputs.environment }}" \
+          --argjson auto_merge ${{ (inputs.auto-merge == 'true' || inputs.auto-merge == true) && 'true' || 'false' }} \
+          --arg description "Deployment for ${{ inputs.environment }} environment" \
+          --arg target_url "${{ inputs.target-url }}" \
+          --argjson auto_inactive true \
+          --argjson required_contexts '[]' \
+          '{
+            ref: $ref,
+            task: "deploy",
+            environment: $environment,
+            auto_merge: $auto_merge,
+            description: $description,
+            target_url: $target_url,
+            auto_inactive: $auto_inactive,
+            required_contexts: $required_contexts
+          }' > payload.json
+
         curl -s -X POST \
           -H "Authorization: token ${{ inputs.github-token }}" \
           -H "Accept: application/vnd.github+json" \
           -H "X-GitHub-Api-Version: ${{ inputs.github-api-version }}" \
           https://api.github.com/repos/${{ github.repository }}/deployments \
-          -d '{
-            "ref": "${{ inputs.ref }}",
-            "task": "deploy",
-            "environment": "${{ inputs.environment }}",
-            "auto_merge": ${{ (inputs.auto-merge == 'true' || inputs.auto-merge == true) && 'true' || 'false' }},
-            "description": "Deployment for ${{ inputs.environment }} environment",
-            "target_url": "${{ inputs.target-url }}",
-            "auto_inactive": true,
-            "required_contexts": []
-          }' > response.json
+          -d @payload.json > response.json
 
         cat response.json
         
