@@ -42,7 +42,7 @@ inputs:
     required: false
     type: string
     default: ""
-  deployment-url:
+  environment-url:
     description: URL to link in the deployment status (e.g. CI build URL)
     required: false
     type: string
@@ -84,10 +84,12 @@ runs:
           https://api.github.com/repos/${{ github.repository }}/deployments \
           -d '{
             "ref": "${{ inputs.ref }}",
+            task: "deploy",
             "environment": "${{ inputs.environment }}",
             "auto_merge": ${{ (inputs.auto-merge == 'true' || inputs.auto-merge == true) && 'true' || 'false' }},
             "description": "Deployment for ${{ inputs.environment }} environment",
             "target_url": "${{ inputs.target-url }}",
+            "auto_inactive": true,
             "required_contexts": []
           }' > response.json
 
@@ -115,7 +117,7 @@ runs:
           -d "{
             \"state\": \"${{ inputs.state != '' && inputs.state || 'success' }}\",
             \"description\": \"Deployment success\",
-            \"deployment_url\": \"${{ inputs.deployment-url || inputs.target-url }}\"
+            \"environment_url\": \"${{ inputs.environment-url || inputs.target-url }}\"
           }"
 
     - name: Mark Deployment as Inactive
