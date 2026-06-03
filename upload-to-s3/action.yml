@@ -25,6 +25,11 @@ inputs:
     required: false
     type: string
     default: "private"
+  cache-control:
+    description: Cache-Control header value to apply to deployed files (e.g. "no-cache, no-store")
+    required: false
+    type: string
+    default: "private, max-age:3600"
   no-cache:
     description: Pattern to exclude from caching (e.g. "*.html")
     required: false
@@ -48,13 +53,23 @@ runs:
         exit 1
       fi
 
+      # aws s3 cp if source-path is a file, aws s3 sync if it's a directory
+      if [ -f "${{ inputs.source-path }}" ]; then
+        aws s3 cp ${{ inputs.source-path }} s3://${{ inputs.bucket-target }}${{ inputs.bucket-path && format('/{0}', inputs.bucket-path) || '' }} \
+          --profile ${{ inputs.aws-profile }} \
+          --acl ${{ inputs.acl }} \
+          --cache-control "${{ inputs.cache-control }}"
+
+        exit 0
+      fi
+
       aws s3 sync ${{ inputs.source-path }} s3://${{ inputs.bucket-target }}${{ inputs.bucket-path && format('/{0}', inputs.bucket-path) || '' }} \
           --profile ${{ inputs.aws-profile }} \
           --acl ${{ inputs.acl }} \
           ${{
             inputs.no-cache && format('--exclude {0}', inputs.no-cache) || ''
           }} \
-          --cache-control "private, max-age:3600" \
+          --cache-control "${{ inputs.cache-control }}" \
           ${{
             inputs.delete && '--delete' || ''
           }}

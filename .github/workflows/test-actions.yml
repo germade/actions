@@ -89,16 +89,27 @@ jobs:
           mkdir -p test-s3/site
           printf '<html>index</html>\n' > test-s3/site/index.html
           printf 'console.log(1);\n' > test-s3/site/app.js
+          printf 'single file\n' > test-s3/single.txt
 
       - name: Run deploy action
         uses: ./upload-to-s3
         with:
-          profile: smoke
+          aws-profile: smoke
           bucket-target: demo-bucket
           source-path: test-s3/site
           bucket-path: preview
           acl: public-read
           no-cache: '*.html'
+          delete: true
+
+      - name: Run deploy action for single file
+        uses: ./upload-to-s3
+        with:
+          aws-profile: smoke
+          bucket-target: demo-bucket
+          source-path: test-s3/single.txt
+          bucket-path: preview
+          acl: public-read
 
       - name: Verify AWS CLI invocations
         shell: bash
@@ -106,6 +117,7 @@ jobs:
           set -euo pipefail
           grep -F 's3 sync test-s3/site s3://demo-bucket/preview --profile smoke --acl public-read --exclude *.html --cache-control private, max-age:3600 --delete' "$AWS_LOG_FILE"
           grep -F 's3 cp test-s3/site s3://demo-bucket/preview --profile smoke --acl public-read --recursive --exclude * --include *.html --cache-control no-cache, no-store' "$AWS_LOG_FILE"
+          grep -F 's3 cp test-s3/single.txt s3://demo-bucket/preview --profile smoke --acl public-read --cache-control private, max-age:3600' "$AWS_LOG_FILE"
 
   github_deployment:
     name: GitHub Deployment

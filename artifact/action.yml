@@ -15,7 +15,7 @@ inputs:
     required: false
     default: false
   action:
-    description: "Artifact action: 'save', 'upload' | 'load', 'download'"
+    description: "Artifact action: 'save', 'upload' | 'load', 'download', 'restore'"
     required: true
 
 runs:
@@ -31,11 +31,11 @@ runs:
           save|upload)
             artifact_action='save'
             ;;
-          load|download)
+          load|download|restore)
             artifact_action='load'
             ;;
           *)
-            echo "Invalid action '$artifact_action'. Expected 'save'/'upload' or 'load'/'download'." >&2
+            echo "Invalid action '$artifact_action'. Expected 'save'/'upload' or 'load'/'download'/'restore'." >&2
             exit 1
             ;;
         esac
