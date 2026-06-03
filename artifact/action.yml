@@ -72,7 +72,7 @@ runs:
 
     - name: Upload artifact
       if: ${{ steps.resolve.outputs.artifact_action == 'save' }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ steps.resolve.outputs.artifact_name }}
         path: ${{ steps.resolve.outputs.is_compressed == 'true' && steps.resolve.outputs.is_dir == 'true' && steps.prepare_compressed_upload.outputs.artifact_path || inputs.path }}
@@ -80,7 +80,7 @@ runs:
 
     - name: Download artifact
       if: ${{ steps.resolve.outputs.artifact_action == 'load' }}
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         name: ${{ steps.resolve.outputs.artifact_name }}
         path: ${{ steps.resolve.outputs.temp_dir }}
