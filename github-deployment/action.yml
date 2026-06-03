@@ -84,7 +84,7 @@ runs:
           https://api.github.com/repos/${{ github.repository }}/deployments \
           -d '{
             "ref": "${{ inputs.ref }}",
-            task: "deploy",
+            "task": "deploy",
             "environment": "${{ inputs.environment }}",
             "auto_merge": ${{ (inputs.auto-merge == 'true' || inputs.auto-merge == true) && 'true' || 'false' }},
             "description": "Deployment for ${{ inputs.environment }} environment",
