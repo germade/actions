@@ -41,6 +41,9 @@ outputs:
   release-id:
     description: 'Created or existing release ID'
     value: ${{ steps.release.outputs.release-id }}
+  release-tag:
+    description: 'Release tag name'
+    value: ${{ steps.release.outputs.release-tag }}
   release-json:
     description: 'Full JSON response of the created or existing release'
     value: ${{ steps.release.outputs.release-json }}
@@ -106,6 +109,7 @@ runs:
           -d "$release_payload")
 
         release_id=$(echo "$create_response" | jq -r '.id // empty')
+        release_tag=$(echo "$create_response" | jq -r '.tag_name // empty')
 
         if [ -z "$release_id" ]; then
           echo "Failed to create release. Response:"
@@ -115,6 +119,7 @@ runs:
 
         echo "Release created with ID: $release_id"
         echo "release-id=$release_id" >> "$GITHUB_OUTPUT"
+        echo "release-tag=$release_tag" >> "$GITHUB_OUTPUT"
         echo "release-json=$create_response" >> "$GITHUB_OUTPUT"
 
     - name: Upload attachments

@@ -1,0 +1,83 @@
+
+name: 'GitHub Release Asset'
+description: 'Upload assets to a GitHub release'
+
+inputs:
+  github-token:
+    description: GitHub token with permissions to create releases and upload assets
+    required: false
+    type: string
+    default: ${{ github.token }}
+    secret: true
+  github-api-version:
+    description: GitHub API version to use
+    required: false
+    type: string
+    default: 2026-03-10
+  tag:
+    description: 'The release tag'
+    required: true
+  download-filename:
+    description: 'The file to be downloaded from the release (if not the same as the uploaded file)'
+    required: false
+  upload-filename:
+    description: 'The file to be uploaded to the release (if not the same as the downloaded file)'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Check if release exists
+      id: release
+      shell: bash
+      run: |
+        response=$(curl -sSL \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${{ inputs.github-token }}" \
+          -H "X-GitHub-Api-Version: ${{ inputs.github-api-version }}" \
+          "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ inputs.tag }}")
+        release_id=$(echo "$response" | jq -r '.id // empty')
+
+        if [ -n "$release_id" ]; then
+          echo "Release with tag '${{ inputs.tag }}' already exists (ID: $release_id)"
+          echo "release-id=$release_id" >> "$GITHUB_OUTPUT"
+          echo "release-tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          echo "release-json=$response" >> "$GITHUB_OUTPUT"
+        else
+          echo "Release with tag '${{ inputs.tag }}' does not exist."
+          exit 1
+        fi
+
+    - name: Download release assetç
+      if: ${{ inputs.download-filename }}
+      shell: bash
+      env:
+        RELEASE_TAG: ${{ steps.release.outputs.release-tag }}
+      run: |
+        asset_url=$(echo "${{ steps.release.outputs.release-json }}" | jq -r '.assets[] | select(.name == "'"${{ inputs.download-filename }}"'") | .url')
+
+        if [ -z "$asset_url" ]; then
+          echo "Asset '${{ inputs.download-filename }}' not found in release '${{ inputs.tag }}'."
+          exit 1
+        fi
+
+        curl -sSL \
+          -H "Accept: application/octet-stream" \
+          -H "Authorization: Bearer ${{ inputs.github-token }}" \
+          -H "X-GitHub-Api-Version: ${{ inputs.github-api-version }}" \
+          "$asset_url" -o "${{ inputs.download-filename }}"
+
+    - name: Upload release asset
+      if: ${{ inputs.upload-filename }}
+      shell: bash
+      env:
+        RELEASE_ID: ${{ steps.release.outputs.release-id }}
+      run: |
+        upload_url=$(echo "${{ steps.release.outputs.release-json }}" | jq -r '.upload_url' | sed -e "s/{?name,label}//")
+
+        curl -sSL \
+          -H "Authorization: Bearer ${{ inputs.github-token }}" \
+          -H "Content-Type: application/octet-stream" \
+          -H "X-GitHub-Api-Version: ${{ inputs.github-api-version }}" \
+          --data-binary @"${{ inputs.upload-filename }}" \
+          "$upload_url?name=$(basename "${{ inputs.upload-filename }}")"
