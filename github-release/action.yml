@@ -191,12 +191,13 @@ runs:
 
           encoded_file_name=$(jq -nr --arg value "$file_name" '$value|@uri')
 
+          mime_type=$(file -b --mime-type "$file_path" 2>/dev/null || echo "application/octet-stream")
           echo "Uploading attachment '$file_name' from '$file_path'..."
           upload_response=$(curl -sSL -X POST \
             -H "Authorization: Bearer ${{ inputs.github-token }}" \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: ${{ inputs.github-api-version }}" \
-            -H "Content-Type: $(file -b --mime-type "$file_path")" \
+            -H "Content-Type: $mime_type" \
             --data-binary @"$file_path" \
             "https://uploads.github.com/repos/${{ github.repository }}/releases/${{ steps.release.outputs.release-id }}/assets?name=$encoded_file_name")
 
