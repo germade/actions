@@ -1,0 +1,57 @@
+name: Allow add comment to Shortcut story
+description: Allows adding a comment to a Shortcut story.
+
+inputs:
+  story-id:
+    description: 'The Shortcut story ID to add the comment to (e.g. 12345)'
+    required: true
+  comment:
+    description: 'The comment text to add to the story'
+    required: true
+  shortcut-token:
+    description: 'Shortcut API token with permissions to add comments to the story'
+    required: false
+    type: string
+    default: ${{ secrets.SHORTCUT_TOKEN }}
+    secret: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Add comment to Shortcut story
+      shell: bash
+      env:
+        STORY_ID: ${{ inputs.story-id }}
+        COMMENT: ${{ inputs.comment }}
+        SHORTCUT_TOKEN: ${{ inputs.shortcut-token }}
+      run: |
+        if [ -z "$SHORTCUT_TOKEN" ]; then
+          echo "Error: Shortcut token is required. Please provide it via the 'shortcut-token' input or set it as a secret named SHORTCUT_TOKEN."
+          exit 1
+        fi
+
+        # dump comment to a temp file to handle multiline comments properly
+        temp_comment_file=$(mktemp)
+        echo "$COMMENT" > "$temp_comment_file"
+
+        jq -n \
+          --arg story_id "$STORY_ID" \
+          --rawfile text "$temp_comment_file" \
+          '{
+            text: $text,
+            story_id: ($story_id | tonumber)
+          }' > comment_payload.json
+
+        response=$(curl -sSL -X POST \
+          -H "Content-Type: application/json" \
+          -H "Shortcut-Token: $SHORTCUT_TOKEN" \
+          -d @comment_payload.json \
+          "https://api.app.shortcut.com/api/v3/comments")
+
+        if [ "$(echo "$response" | jq -r '.id // empty')" ]; then
+          echo "Comment added successfully to story ID $STORY_ID."
+        else
+          echo "Failed to add comment to story ID $STORY_ID. Response: $response"
+          exit 1
+        fi
+        

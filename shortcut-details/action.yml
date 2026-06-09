@@ -1,5 +1,5 @@
 
-name: Export Story details
+name: Export Shortcut Story details
 description: Exports story details like ID, PR num and branch name based on branch and PR info, if available.
 
 outputs:
@@ -19,7 +19,7 @@ outputs:
 runs:
   using: composite
   steps:
-    - name: Export Story details
+    - name: Export Shortcut Story details
       id: export-id
       shell: bash
       env:
@@ -57,7 +57,7 @@ runs:
         fi
 
         # remove sc- prefix if present (e.g. from Shortcut auto-generated branch names)
-        story_id=$(echo "$story_id" | sed -E 's/^sc-//
+        story_id=$(echo "$story_id" | sed -E 's/^sc-//')
 
         echo "story-id=$story_id" >> "$GITHUB_OUTPUT"
         echo "pr-num=$pr_num" >> "$GITHUB_OUTPUT"
