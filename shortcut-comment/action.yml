@@ -34,18 +34,16 @@ runs:
         echo "$COMMENT_BODY" > "$temp_comment_file"
 
         jq -n \
-          --arg story_id "$STORY_ID" \
           --rawfile text "$temp_comment_file" \
           '{
             text: $text,
-            story_id: ($story_id | tonumber)
           }' > comment_payload.json
 
         response=$(curl -sSL -X POST \
           -H "Content-Type: application/json" \
           -H "Shortcut-Token: $SHORTCUT_TOKEN" \
           -d @comment_payload.json \
-          "https://api.app.shortcut.com/api/v3/comments")
+          -L "https://api.app.shortcut.com/api/v3/stories/$STORY_ID/comments")
 
         if [ "$(echo "$response" | jq -r '.id // empty')" ]; then
           echo "Comment added successfully to story ID $STORY_ID."
