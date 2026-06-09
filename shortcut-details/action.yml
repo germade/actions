@@ -59,7 +59,7 @@ runs:
         # remove sc- prefix if present (e.g. from Shortcut auto-generated branch names)
         story_id_num=$(echo "$story_id" | sed -E 's/^sc-//')
 
-        ephemeral_folder="${story_id_num:-${pr_num:+pr-$pr_num}}"
+        ephemeral_folder="${story_id:-${pr_num:+pr-$pr_num}}"
 
         echo "story-id=$story_id_num" >> "$GITHUB_OUTPUT"
         echo "pr-num=$pr_num" >> "$GITHUB_OUTPUT"
