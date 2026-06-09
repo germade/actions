@@ -10,9 +10,8 @@ inputs:
     required: true
   shortcut-token:
     description: 'Shortcut API token with permissions to add comments to the story'
-    required: false
+    required: true
     type: string
-    default: ${{ secrets.SHORTCUT_TOKEN }}
     secret: true
 
 runs:
@@ -54,4 +53,3 @@ runs:
           echo "Failed to add comment to story ID $STORY_ID. Response: $response"
           exit 1
         fi
-        
