@@ -76,12 +76,12 @@ runs:
         node-version: ${{ inputs.node-version }}
         node-version-file: ${{ inputs.node-version-file }}
 
-    - name: Save/Restore Node.js dependencies to/from cache (optional)
+    - name: Use Node cache (optional)
       if: ${{ inputs.install-node-dependencies != 'false' && inputs.install-node-dependencies != false && inputs.use-node-cache != 'false' && inputs.use-node-cache != false }}
       uses: actions/cache@v5
       with:
         path: '**/node_modules'
-        key: ${{ runner.os }}-${{ inputs.use-npm-cache || format('node-deps-{0}', hashFiles('**/package.json')) }}
+        key: ${{ runner.os }}-${{ inputs.node-version || 'default' }}-${{ inputs.use-node-cache || format('node-deps-{0}', hashFiles('**/package.json')) }}
 
     - name: Install Node.js dependencies (optional)
       shell: bash
