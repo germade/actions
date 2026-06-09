@@ -90,7 +90,7 @@ runs:
       uses: actions/cache@v5
       with:
         path: '**/node_modules'
-        key: ${{ runner.os }}-${{ steps.node.outputs.version }}-${{ inputs.use-node-cache || format('node-deps-{0}', hashFiles('**/package.json')) }}
+        key: ${{ runner.os }}-${{ steps.node.outputs.version }}-${{ inputs.use-node-cache == 'true' || inputs.use-node-cache == true && format('node-deps-{0}', hashFiles('**/package.json')) || inputs.use-node-cache }}
 
     - name: Install Node.js dependencies (optional)
       shell: bash
