@@ -84,14 +84,14 @@ runs:
         NODE_VERSION=$(node --version 2>/dev/null || echo "default")
         echo "version=$NODE_VERSION" >> "$GITHUB_OUTPUT"
         echo "Node.js version: $NODE_VERSION"
-        echo Node cache key: ${{ runner.os }}-$NODE_VERSION-${{ inputs.use-node-cache == 'true' || inputs.use-node-cache == true && format('node-deps-{0}', hashFiles('**/package.json')) || inputs.use-node-cache }}
+        echo Node cache key: ${{ runner.os }}-$NODE_VERSION-${{ (inputs.use-node-cache == 'true' || inputs.use-node-cache == true) && format('node-deps-{0}', hashFiles('**/package.json')) || inputs.use-node-cache }}
 
     - name: Use Node cache (optional)
       if: ${{ inputs.install-node-dependencies != 'false' && inputs.install-node-dependencies != false && inputs.use-node-cache != 'false' && inputs.use-node-cache != false }}
       uses: actions/cache@v5
       with:
         path: '**/node_modules'
-        key: ${{ runner.os }}-${{ steps.node.outputs.version }}-${{ inputs.use-node-cache == 'true' || inputs.use-node-cache == true && format('node-deps-{0}', hashFiles('**/package.json')) || inputs.use-node-cache }}
+        key: ${{ runner.os }}-${{ steps.node.outputs.version }}-${{ (inputs.use-node-cache == 'true' || inputs.use-node-cache == true) && format('node-deps-{0}', hashFiles('**/package.json')) || inputs.use-node-cache }}
 
     - name: Install Node.js dependencies (optional)
       shell: bash
