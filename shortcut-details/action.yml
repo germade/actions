@@ -57,13 +57,13 @@ runs:
         fi
 
         # remove sc- prefix if present (e.g. from Shortcut auto-generated branch names)
-        story_id=$(echo "$story_id" | sed -E 's/^sc-//')
+        story_id_num=$(echo "$story_id" | sed -E 's/^sc-//')
 
-        echo "story-id=$story_id" >> "$GITHUB_OUTPUT"
+        echo "story-id=$story_id_num" >> "$GITHUB_OUTPUT"
         echo "pr-num=$pr_num" >> "$GITHUB_OUTPUT"
         echo "branch-name=$branch_name" >> "$GITHUB_OUTPUT"
 
-        echo "Extracted story ID: $story_id"
+        echo "Extracted story ID: $story_id_num"
         echo "PR number: $pr_num"
         echo "Branch name: $branch_name"
         echo "Ephemeral folder: ${story_id:-${pr_num:+pr-$pr_num}}"
