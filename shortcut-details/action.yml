@@ -14,7 +14,7 @@ outputs:
     value: ${{ steps.export-id.outputs.branch-name }}
   ephemeral-folder:
     description: The folder name to use for ephemeral deployments, based on story ID or PR num
-    value: ${{ steps.export-id.outputs.story-id || (steps.export-id.outputs.pr-num && format('pr-{0}', steps.export-id.outputs.pr-num)) || 'unknown' }}
+    value: ${{ steps.export-id.outputs.ephemeral-folder }}
 
 runs:
   using: composite
@@ -59,11 +59,14 @@ runs:
         # remove sc- prefix if present (e.g. from Shortcut auto-generated branch names)
         story_id_num=$(echo "$story_id" | sed -E 's/^sc-//')
 
+        ephemeral_folder="${story_id_num:-${pr_num:+pr-$pr_num}}"
+
         echo "story-id=$story_id_num" >> "$GITHUB_OUTPUT"
         echo "pr-num=$pr_num" >> "$GITHUB_OUTPUT"
         echo "branch-name=$branch_name" >> "$GITHUB_OUTPUT"
+        echo "ephemeral-folder=$ephemeral_folder" >> "$GITHUB_OUTPUT"
 
         echo "Extracted story ID: $story_id_num"
         echo "PR number: $pr_num"
         echo "Branch name: $branch_name"
-        echo "Ephemeral folder: ${story_id:-${pr_num:+pr-$pr_num}}"
+        echo "Ephemeral folder: $ephemeral_folder"
