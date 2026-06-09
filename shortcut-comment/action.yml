@@ -5,7 +5,7 @@ inputs:
   story-id:
     description: 'The Shortcut story ID to add the comment to (e.g. 12345)'
     required: true
-  comment:
+  comment-body:
     description: 'The comment text to add to the story'
     required: true
   shortcut-token:
@@ -21,7 +21,7 @@ runs:
       shell: bash
       env:
         STORY_ID: ${{ inputs.story-id }}
-        COMMENT: ${{ inputs.comment }}
+        COMMENT_BODY: ${{ inputs.comment-body }}
         SHORTCUT_TOKEN: ${{ inputs.shortcut-token }}
       run: |
         if [ -z "$SHORTCUT_TOKEN" ]; then
@@ -31,7 +31,7 @@ runs:
 
         # dump comment to a temp file to handle multiline comments properly
         temp_comment_file=$(mktemp)
-        echo "$COMMENT" > "$temp_comment_file"
+        echo "$COMMENT_BODY" > "$temp_comment_file"
 
         jq -n \
           --arg story_id "$STORY_ID" \
