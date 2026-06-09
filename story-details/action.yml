@@ -56,6 +56,9 @@ runs:
           story_id=$(extract_story_id "$pr_ref" || true)
         fi
 
+        # remove sc- prefix if present (e.g. from Shortcut auto-generated branch names)
+        story_id=$(echo "$story_id" | sed -E 's/^sc-//
+
         echo "story-id=$story_id" >> "$GITHUB_OUTPUT"
         echo "pr-num=$pr_num" >> "$GITHUB_OUTPUT"
         echo "branch-name=$branch_name" >> "$GITHUB_OUTPUT"
