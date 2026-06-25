@@ -59,10 +59,11 @@ runs:
       env:
         RELEASE_TAG: ${{ steps.release.outputs.release-tag }}
       run: |
-        asset_url=$(echo "${{ steps.release.outputs.release-json }}" | jq -r '.assets[] | select(.name == "'"${{ inputs.download-filename }}"'") | .url')
+        file_name=${{ inputs.download-filename }}
+        asset_url=$(cat release.json | jq -r '.assets[] | select(.name == "'$file_name'") | .url')
 
         if [ -z "$asset_url" ]; then
-          echo "Asset '${{ inputs.download-filename }}' not found in release '$RELEASE_TAG'."
+          echo "Asset '$file_name' not found in release '$RELEASE_TAG'."
           exit 1
         fi
 
@@ -78,7 +79,8 @@ runs:
       env:
         RELEASE_ID: ${{ steps.release.outputs.release-id }}
       run: |
-        upload_url=$(echo "${{ steps.release.outputs.release-json }}" | jq -r '.upload_url' | sed -e "s/{?name,label}//")
+        file_name=${{ inputs.download-filename }}
+        upload_url=$(cat release.json | jq -r '.upload_url' | sed -e "s/{?name,label}//")
 
         curl -sSL \
           -H "Authorization: Bearer ${{ inputs.github-token }}" \
