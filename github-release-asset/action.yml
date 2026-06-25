@@ -35,16 +35,17 @@ runs:
           -H "Accept: application/vnd.github+json" \
           -H "Authorization: Bearer ${{ inputs.github-token }}" \
           -H "X-GitHub-Api-Version: ${{ inputs.github-api-version }}" \
-          "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ inputs.tag }}")
-        release_id=$(echo "$response" | jq -r '.id // empty')
+          "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ inputs.tag == 'latest' && inputs.tag || format('tags/{0}', inputs.tag) }}")
+        release_id=$(echo "$response" | jq -r '.id')
+        release_tag=$(echo "$response" | jq -r '.tag_name')
 
         if [ -n "$release_id" ]; then
-          echo "Release with tag '${{ inputs.tag }}' already exists (ID: $release_id)"
+          echo "Release with tag '$release_tag' already exists (ID: $release_id)"
           echo "release-id=$release_id" >> "$GITHUB_OUTPUT"
-          echo "release-tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          echo "release-tag=$release_tag" >> "$GITHUB_OUTPUT"
           echo "release-json=$response" >> "$GITHUB_OUTPUT"
         else
-          echo "Release with tag '${{ inputs.tag }}' does not exist."
+          echo "Release with tag '$release_tag' does not exist."
           exit 1
         fi
 
@@ -57,7 +58,7 @@ runs:
         asset_url=$(echo "${{ steps.release.outputs.release-json }}" | jq -r '.assets[] | select(.name == "'"${{ inputs.download-filename }}"'") | .url')
 
         if [ -z "$asset_url" ]; then
-          echo "Asset '${{ inputs.download-filename }}' not found in release '${{ inputs.tag }}'."
+          echo "Asset '${{ inputs.download-filename }}' not found in release '$RELEASE_TAG'."
           exit 1
         fi
 
