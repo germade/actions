@@ -44,7 +44,7 @@ runs:
         release_tag=$(cat release.json | jq -r '.tag_name')
 
         if [ -n "$release_id" ]; then
-          echo "Release with tag '$release_tag' already exists (ID: $release_id)"
+          echo "Release with tag '$release_tag' found (ID: $release_id)"
           echo "release-id=$release_id" >> "$GITHUB_OUTPUT"
           echo "release-tag=$release_tag" >> "$GITHUB_OUTPUT"
           echo "release-json=$response" >> "$GITHUB_OUTPUT"
