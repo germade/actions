@@ -48,7 +48,7 @@ runs:
           exit 1
         fi
 
-    - name: Download release assetç
+    - name: Download release asset
       if: ${{ inputs.download-filename }}
       shell: bash
       env:
