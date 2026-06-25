@@ -24,6 +24,17 @@ inputs:
     description: 'The file to be uploaded to the release (if not the same as the downloaded file)'
     required: false
 
+outputs:
+  release-id:
+    description: 'Created or existing release ID'
+    value: ${{ steps.release.outputs.release-id }}
+  release-tag:
+    description: 'Release tag name'
+    value: ${{ steps.release.outputs.release-tag }}
+  release-json:
+    description: 'Full JSON response of the created or existing release'
+    value: ${{ steps.release.outputs.release-json }}
+
 runs:
   using: 'composite'
   steps:
