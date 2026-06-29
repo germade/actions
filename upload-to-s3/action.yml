@@ -47,7 +47,7 @@ runs:
   - name: Deploy to S3
     shell: bash
     run: |
-      # deploying ${{ inputs.bucket-target }} to s3://${{ inputs.bucket-target }}${{ inputs.bucket-path && format('/{0}', inputs.bucket-path) || '' }}
+      # deploying ${{ inputs.source-path }} to s3://${{ inputs.bucket-target }}${{ inputs.bucket-path && format('/{0}', inputs.bucket-path) || '' }}
 
       # exit if bucket-target is empty
       if [ -z "${{ inputs.bucket-target }}" ]; then
