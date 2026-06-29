@@ -30,6 +30,11 @@ inputs:
     required: false
     type: string
     default: "private, max-age:3600"
+  force-update:
+    description: Forces use cp --recursive instead of sync, in order to override data and ACL
+    required: false
+    type: boolean
+    default: false
   no-cache:
     description: Pattern to exclude from caching (e.g. "*.html")
     required: false
@@ -65,7 +70,16 @@ runs:
         exit 0
       fi
 
-      aws s3 sync ${{ inputs.source-path }} s3://${{ inputs.bucket-target }}${{ inputs.bucket-path && format('/{0}', inputs.bucket-path) || '' }} \
+      if [ "${{ inputs.force-update }}" != "false" ]; then
+        aws s3 cp --recursive ${{ inputs.source-path }} s3://${{ inputs.bucket-target }}${{ inputs.bucket-path && format('/{0}', inputs.bucket-path) || '' }} \
+          --profile ${{ inputs.aws-profile }} \
+          --acl ${{ inputs.acl }} \
+          ${{
+            inputs.no-cache && format('--exclude {0}', inputs.no-cache) || ''
+          }} \
+          --cache-control "${{ inputs.cache-control }}"
+      else
+        aws s3 sync ${{ inputs.source-path }} s3://${{ inputs.bucket-target }}${{ inputs.bucket-path && format('/{0}', inputs.bucket-path) || '' }} \
           --profile ${{ inputs.aws-profile }} \
           --acl ${{ inputs.acl }} \
           ${{
@@ -74,7 +88,8 @@ runs:
           --cache-control "${{ inputs.cache-control }}" \
           ${{
             inputs.delete && '--delete' || ''
-          }}
+          }}  
+      fi
 
       if [ "${{ inputs.no-cache }}" != "false" ]; then
         aws s3 cp ${{ inputs.source-path }} s3://${{ inputs.bucket-target }}${{ inputs.bucket-path && format('/{0}', inputs.bucket-path) || '' }} \
