@@ -28,13 +28,24 @@ runs:
   steps:
     - name: Trigger repository_dispatch event
       shell: bash
+      env:
+        GH_REPO: ${{ inputs.github-repository }}
+        GH_TOKEN: ${{ inputs.github-token }}
+        GH_API_VERSION: ${{ inputs.github-api-version }}
+        EVENT_TYPE: ${{ inputs.event-type }}
+        CLIENT_PAYLOAD: ${{ inputs.client-payload }}
       run: |
+        PAYLOAD=$(jq -n \
+          --arg event_type "$EVENT_TYPE" \
+          --argjson client_payload "$CLIENT_PAYLOAD" \
+          '{event_type: $event_type, client_payload: $client_payload}')
+
         response=$(curl -X POST -i \
           -H "Accept: application/vnd.github+json" \
-          -H "Authorization: Bearer ${{ inputs.github-token }}" \
-          -H "X-GitHub-Api-Version: ${{ inputs.github-api-version }}" \
-          https://api.github.com/repos/${{ inputs.github-repository }}/dispatches \
-          -d "{\"event_type\": \"${{ inputs.event-type }}\", \"client_payload\": ${{ inputs.client-payload }}}")
+          -H "Authorization: Bearer $GH_TOKEN" \
+          -H "X-GitHub-Api-Version: $GH_API_VERSION" \
+          https://api.github.com/repos/$GH_REPO/dispatches \
+          -d "$PAYLOAD")
         
         if [ $? -ne 0 ]; then
           echo "Failed to trigger repository_dispatch event. Response: $response"
