@@ -13,7 +13,8 @@ inputs:
     default: '2022-11-28'
   github-repository:
     description: 'The target repository in the format "owner/repo"'
-    required: true
+    required: false
+    default: '${{ github.repository }}'
   event-type:
     description: 'The event type to trigger on the target repository'
     required: true
