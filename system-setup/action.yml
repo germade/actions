@@ -25,8 +25,13 @@ inputs:
     required: false
     type: boolean
     default: false
+  package-lock:
+    description: Whether to use a package-lock.json file when installing Node.js dependencies (true, false, or path to package-lock.json)
+    required: false
+    type: boolean
+    default: false
   use-node-cache:
-    description: Whether to use actions/cache for caching node_modules based on package-lock.json
+    description: Whether to use actions/cache for caching node_modules based on package.json
     required: false
     default: true
   install-node-dependencies-no-save:
@@ -96,12 +101,12 @@ runs:
     - name: Install Node.js dependencies (optional)
       shell: bash
       if: ${{ inputs.install-node-dependencies == 'true' || inputs.install-node-dependencies == true }}
-      run: rm -f package-lock.json && npm install
+      run: npm install ${{ inputs.package-lock == 'false' || inputs.package-lock == false ? '--no-package-lock' : '' }}
     
     - name: Install Node.js dependencies (optional, no-save)
       shell: bash
       if: ${{ inputs.install-node-dependencies-no-save == 'true' || inputs.install-node-dependencies-no-save == true }}
-      run: npm install --no-save
+      run: npm install --no-save ${{ inputs.package-lock == 'false' || inputs.package-lock == false ? '--no-package-lock' : '' }}
     
     - name: Check and install missing commands
       if: ${{ inputs.install-linux-commands != '' }}
