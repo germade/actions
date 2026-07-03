@@ -29,9 +29,27 @@ runs:
     - name: Trigger repository_dispatch event
       shell: bash
       run: |
-        curl -X POST \
+        response=$(curl -X POST -i \
           -H "Accept: application/vnd.github+json" \
           -H "Authorization: Bearer ${{ inputs.github-token }}" \
           -H "X-GitHub-Api-Version: ${{ inputs.github-api-version }}" \
           https://api.github.com/repos/${{ inputs.github-repository }}/dispatches \
-          -d "{\"event_type\": \"${{ inputs.event-type }}\", \"client_payload\": ${{ inputs.client-payload }}}"
+          -d "{\"event_type\": \"${{ inputs.event-type }}\", \"client_payload\": ${{ inputs.client-payload }}}")
+        
+        if [ $? -ne 0 ]; then
+          echo "Failed to trigger repository_dispatch event. Response: $response"
+          exit 1
+        fi
+
+        # handle 4xx responses
+        if [[ "$response" == *"HTTP/1.1 4"* ]]; then
+          echo "Client error occurred. Response: $response"
+          exit 1
+        fi
+
+        # handle 5xx responses
+        if [[ "$response" == *"HTTP/1.1 5"* ]]; then
+          echo "Server error occurred. Response: $response"
+          exit 1
+        fi
+
