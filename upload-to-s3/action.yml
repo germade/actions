@@ -67,7 +67,7 @@ runs:
     if: ${{ inputs.check-if-previous-deployment == 'true' }}
     run: |
       # check if the file exists in the S3 bucket
-      if aws s3 ls s3://${{ inputs.bucket-target }}${{ inputs.bucket-path && format('/{0}', inputs.bucket-path) || '' }}/.deployed-successfully > /dev/null 2>&1; then
+      if aws s3 ls s3://${{ inputs.bucket-target }}${{ inputs.bucket-path && format('/{0}', inputs.bucket-path) || '' }} > /dev/null 2>&1; then
         echo "Previous deployment was successful"
         echo "previously-deployed=true" >> $GITHUB_OUTPUT
       else
