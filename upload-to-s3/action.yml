@@ -2,6 +2,13 @@
 name: Deploy to S3
 description: Deploy build artifacts to S3
 
+outputs:
+  previously-deployed:
+    description: Whether the previous deployment was successful (if check-if-previous-deployment is true)
+    value: ${{ steps.check-previous-deployment.outputs.previously-deployed }}
+    type: boolean
+    default: false
+
 inputs:
   aws-profile:
     description: AWS CLI profile to use for deployment
@@ -45,10 +52,28 @@ inputs:
     required: false
     type: boolean
     default: false
+  check-if-previous-deployment:
+    description: Check if the previous deployment was successful by looking for a specific file in the S3 bucket
+    required: false
+    type: boolean
+    default: false
 
 runs:
   using: composite
   steps:
+  - name: Check if previous deployment was successful
+    id: check-previous-deployment
+    shell: bash
+    if: ${{ inputs.check-if-previous-deployment == 'true' }}
+    run: |
+      # check if the file exists in the S3 bucket
+      if aws s3 ls s3://${{ inputs.bucket-target }}${{ inputs.bucket-path && format('/{0}', inputs.bucket-path) || '' }}/.deployed-successfully > /dev/null 2>&1; then
+        echo "Previous deployment was successful"
+        echo "previously-deployed=true" >> $GITHUB_OUTPUT
+      else
+        echo "Previous deployment was not successful"
+        echo "previously-deployed=false" >> $GITHUB_OUTPUT
+      fi
   - name: Deploy to S3
     shell: bash
     run: |
