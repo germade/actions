@@ -6,8 +6,6 @@ outputs:
   previously-deployed:
     description: Whether the previous deployment was successful (if check-if-previous-deployment is true)
     value: ${{ steps.check-previous-deployment.outputs.previously-deployed }}
-    type: boolean
-    default: false
 
 inputs:
   aws-profile:
