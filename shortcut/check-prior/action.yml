@@ -1,0 +1,40 @@
+name: Check prior Shortcut notification
+description: Checks whether a Shortcut story already has a comment containing the notification marker.
+
+inputs:
+  story-id:
+    description: Shortcut story ID
+    required: true
+  notification-marker:
+    description: Marker used to detect an existing notification
+    required: true
+  shortcut-token:
+    description: Shortcut API token
+    required: true
+
+outputs:
+  already-notified:
+    description: Whether the marker was found in the story comments
+    value: ${{ steps.check.outputs.already-notified }}
+
+runs:
+  using: composite
+  steps:
+    - name: Check story comments
+      id: check
+      shell: bash
+      env:
+        STORY_ID: ${{ inputs.story-id }}
+        NOTIFICATION_MARKER: ${{ inputs.notification-marker }}
+        SHORTCUT_TOKEN: ${{ inputs.shortcut-token }}
+      run: |
+        set -euo pipefail
+
+        comments=$(curl -fsSL \
+          -H "Shortcut-Token: $SHORTCUT_TOKEN" \
+          "https://api.app.shortcut.com/api/v3/stories/$STORY_ID/comments")
+
+        already_notified=$(jq -r --arg marker "$NOTIFICATION_MARKER" \
+          'any(.[]; (.text // "") | contains($marker))' <<< "$comments")
+
+        echo "already-notified=$already_notified" >> "$GITHUB_OUTPUT"
