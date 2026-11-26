@@ -59,7 +59,7 @@ inputs:
     default: false
 outputs:
   deployment_id:
-    description: The ID of the created deployment
+    description: The ID of the created or reused deployment
     value: ${{ steps.deployment.outputs.deployment_id }}
 runs:
   using: composite
@@ -67,53 +67,50 @@ runs:
     - name: Create Deployment
       id: deployment
       shell: bash
+      env:
+        DEPLOYMENT_ID: ${{ inputs.deployment-id }}
+        DEPLOYMENT_REF: ${{ inputs.ref }}
+        DEPLOYMENT_ENVIRONMENT: ${{ inputs.environment }}
+        DEPLOYMENT_TARGET_URL: ${{ inputs.target-url }}
+        DEPLOYMENT_AUTO_MERGE: ${{ (inputs.auto-merge == 'true' || inputs.auto-merge == true) && 'true' || 'false' }}
+        GH_TOKEN: ${{ inputs.github-token }}
+        GH_API_VERSION: ${{ inputs.github-api-version }}
       run: |
-        # create deployment if not provided, export enyway
-        if [ -z "${{ inputs.deployment-id }}" ]; then
-           echo "No deployment ID provided, creating new deployment..."
+        if [ -z "$DEPLOYMENT_ID" ]; then
+          echo "No deployment ID provided, creating new deployment..."
+          payload=$(jq -n \
+            --arg ref "$DEPLOYMENT_REF" \
+            --arg environment "$DEPLOYMENT_ENVIRONMENT" \
+            --argjson auto_merge "$DEPLOYMENT_AUTO_MERGE" \
+            --arg description "Deployment for $DEPLOYMENT_ENVIRONMENT environment" \
+            --arg target_url "$DEPLOYMENT_TARGET_URL" \
+            '{ref: $ref, task: "deploy", environment: $environment, auto_merge: $auto_merge,
+              description: $description, target_url: $target_url, auto_inactive: true, required_contexts: []}')
+
+          if ! response=$(curl --fail-with-body --silent --show-error -X POST \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: $GH_API_VERSION" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/deployments" \
+            -d "$payload"); then
+            printf 'Failed to create deployment. Response: %s\n' "$response" >&2
+            exit 1
+          fi
+
+          if ! DEPLOYMENT_ID=$(printf '%s' "$response" | jq -er '.id | select(type == "number" and . > 0)'); then
+            printf 'Failed to parse deployment ID. Response: %s\n' "$response" >&2
+            exit 1
+          fi
         else
-           echo "Deployment ID provided: ${{ inputs.deployment-id }}, skipping creation..."
-           echo "deployment_id=${{ inputs.deployment-id }}" >> $GITHUB_OUTPUT
-           exit 0
+          echo "Deployment ID provided, skipping creation..."
         fi
 
-        jq -n \
-          --arg ref "${{ inputs.ref }}" \
-          --arg environment "${{ inputs.environment }}" \
-          --argjson auto_merge ${{ (inputs.auto-merge == 'true' || inputs.auto-merge == true) && 'true' || 'false' }} \
-          --arg description "Deployment for ${{ inputs.environment }} environment" \
-          --arg target_url "${{ inputs.target-url }}" \
-          --argjson auto_inactive true \
-          --argjson required_contexts '[]' \
-          '{
-            ref: $ref,
-            task: "deploy",
-            environment: $environment,
-            auto_merge: $auto_merge,
-            description: $description,
-            target_url: $target_url,
-            auto_inactive: $auto_inactive,
-            required_contexts: $required_contexts
-          }' > payload.json
-
-        curl -s -X POST \
-          -H "Authorization: token ${{ inputs.github-token }}" \
-          -H "Accept: application/vnd.github+json" \
-          -H "X-GitHub-Api-Version: ${{ inputs.github-api-version }}" \
-          https://api.github.com/repos/${{ github.repository }}/deployments \
-          -d @payload.json > response.json
-
-        cat response.json
-        
-        DEPLOYMENT_ID=$(jq -r '.id' response.json)
-        echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
-
-        if [ -z "$DEPLOYMENT_ID" ] || [ "$DEPLOYMENT_ID" = "null" ]; then
-          echo "Failed to create deployment. Response: $(cat response.json)" >&2
+        if ! [[ "$DEPLOYMENT_ID" =~ ^[1-9][0-9]*$ ]]; then
+          echo "Invalid deployment ID: $DEPLOYMENT_ID" >&2
           exit 1
-        else 
-          echo "Deployment created with ID: $DEPLOYMENT_ID"
         fi
+        echo "deployment_id=$DEPLOYMENT_ID" >> "$GITHUB_OUTPUT"
+        echo "Deployment ID: $DEPLOYMENT_ID"
     - name: Update Deployment Status
       id: update
       if: steps.deployment.outputs.deployment_id != '' && (inputs.success == true || inputs.success == 'true' || inputs.state != '')
